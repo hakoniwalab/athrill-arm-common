@@ -69,3 +69,8 @@ Testing/
 
 # Python
 __pycache__/
+
+# Coverage
+*.profraw
+*.profdata
+build-coverage/
