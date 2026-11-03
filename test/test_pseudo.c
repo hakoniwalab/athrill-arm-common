@@ -379,14 +379,115 @@ static void test_mov(void)
 	CHECK(mov_rsr(&core, FALSE, 5U, 1U, 6U, SRType_LSL) == STD_E_OK && core.r[5] == 0U && core.apsr == NZCV(1, 0, 0, 0), "LSL by 40");
 }
 
+/*
+ * The remaining data-processing instructions: one case per line, from R[n],
+ * the second operand (imm32 with the expansion's carry, or R[m] with a
+ * shift) and NZCV before, to the result and NZCV after, worked out from the
+ * pseudo-code (AddWithCarry; Shift_C; logical: C from the operand, V
+ * unchanged; setflags FALSE: flags unchanged; TST, TEQ, CMN: no Rd).
+ */
+typedef struct {
+	const char *name;
+	DpImm imm_op;
+	DpReg reg_op;
+	bool setflags;
+	uint32 rn;
+	uint32 op2;
+	SRType shift_t;
+	uint32 shift_n;
+	bool imm_carry;
+	uint32 apsr_before;
+	uint32 result;
+	uint32 apsr_after;
+} DpCase;
+
+static const DpCase dp_cases[] = {
+	{ "ADCS imm", arm_pseudo_adc_imm, NULL, TRUE, 0xFFFFFFFFU, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "ADCS imm", arm_pseudo_adc_imm, NULL, TRUE, 0x7FFFFFFFU, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x80000000U, NZCV(1, 0, 0, 1) },
+	{ "ADC imm", arm_pseudo_adc_imm, NULL, FALSE, 0x00000005U, 0x00000003U, SRType_LSL, 0U, FALSE, NZCV(1, 1, 0, 1), 0x00000008U, NZCV(1, 1, 0, 1) },
+	{ "ADCS reg", NULL, arm_pseudo_adc_reg, TRUE, 0x00000001U, 0x80000000U, SRType_LSR, 31U, FALSE, NZCV(0, 0, 0, 0), 0x00000002U, NZCV(0, 0, 0, 0) },
+	{ "ADCS reg", NULL, arm_pseudo_adc_reg, TRUE, 0xFFFFFFFEU, 0x00000001U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "SBCS imm", arm_pseudo_sbc_imm, NULL, TRUE, 0x00000005U, 0x00000003U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x00000002U, NZCV(0, 0, 1, 0) },
+	{ "SBCS imm", arm_pseudo_sbc_imm, NULL, TRUE, 0x00000005U, 0x00000003U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0x00000001U, NZCV(0, 0, 1, 0) },
+	{ "SBCS imm", arm_pseudo_sbc_imm, NULL, TRUE, 0x00000000U, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0xFFFFFFFFU, NZCV(1, 0, 0, 0) },
+	{ "SBC reg", NULL, arm_pseudo_sbc_reg, FALSE, 0x0000000AU, 0x00000002U, SRType_LSL, 1U, FALSE, NZCV(1, 0, 1, 1), 0x00000006U, NZCV(1, 0, 1, 1) },
+	{ "SBCS reg", NULL, arm_pseudo_sbc_reg, TRUE, 0x80000000U, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0x7FFFFFFFU, NZCV(0, 0, 1, 1) },
+	{ "RSBS imm", arm_pseudo_rsb_imm, NULL, TRUE, 0x00000003U, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0xFFFFFFFDU, NZCV(1, 0, 0, 0) },
+	{ "RSBS imm", arm_pseudo_rsb_imm, NULL, TRUE, 0x00000000U, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "RSBS reg", NULL, arm_pseudo_rsb_reg, TRUE, 0x00000001U, 0x80000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0x7FFFFFFFU, NZCV(0, 0, 1, 1) },
+	{ "RSB reg", NULL, arm_pseudo_rsb_reg, FALSE, 0x00000004U, 0x00000001U, SRType_LSL, 4U, FALSE, NZCV(0, 1, 0, 1), 0x0000000CU, NZCV(0, 1, 0, 1) },
+	{ "SUBS reg", NULL, arm_pseudo_sub_reg, TRUE, 0x00000005U, 0x00000005U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "SUBS reg", NULL, arm_pseudo_sub_reg, TRUE, 0x00000001U, 0x00000001U, SRType_LSL, 1U, FALSE, NZCV(0, 0, 0, 0), 0xFFFFFFFFU, NZCV(1, 0, 0, 0) },
+	{ "SUB reg", NULL, arm_pseudo_sub_reg, FALSE, 0x00000064U, 0x00000001U, SRType_ROR, 1U, FALSE, NZCV(1, 1, 1, 1), 0x80000064U, NZCV(1, 1, 1, 1) },
+	{ "CMNS imm", arm_pseudo_cmn_imm, NULL, TRUE, 0xFFFFFFFFU, 0x00000001U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 0, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "CMNS reg", NULL, arm_pseudo_cmn_reg, TRUE, 0x7FFFFFFFU, 0x00000002U, SRType_LSR, 1U, FALSE, NZCV(0, 0, 0, 0), 0x80000000U, NZCV(1, 0, 0, 1) },
+	{ "ORRS imm", arm_pseudo_orr_imm, NULL, TRUE, 0x0F000000U, 0x80000000U, SRType_LSL, 0U, TRUE, NZCV(0, 0, 0, 1), 0x8F000000U, NZCV(1, 0, 1, 1) },
+	{ "ORRS reg", NULL, arm_pseudo_orr_reg, TRUE, 0x00000000U, 0x00000000U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "ORR reg", NULL, arm_pseudo_orr_reg, FALSE, 0x000000F0U, 0x00000F00U, SRType_LSL, 4U, FALSE, NZCV(1, 1, 1, 1), 0x0000F0F0U, NZCV(1, 1, 1, 1) },
+	{ "ORNS imm", arm_pseudo_orn_imm, NULL, TRUE, 0x00000000U, 0xFFFFFFFFU, SRType_LSL, 0U, FALSE, NZCV(1, 0, 1, 1), 0x00000000U, NZCV(0, 1, 0, 1) },
+	{ "ORNS reg", NULL, arm_pseudo_orn_reg, TRUE, 0x00000001U, 0x00000003U, SRType_LSR, 1U, FALSE, NZCV(0, 0, 0, 0), 0xFFFFFFFFU, NZCV(1, 0, 1, 0) },
+	{ "EORS imm", arm_pseudo_eor_imm, NULL, TRUE, 0xFFFF0000U, 0xFFFF0000U, SRType_LSL, 0U, TRUE, NZCV(0, 0, 0, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "EORS reg", NULL, arm_pseudo_eor_reg, TRUE, 0x12345678U, 0x00000001U, SRType_ROR, 1U, FALSE, NZCV(0, 0, 0, 1), 0x92345678U, NZCV(1, 0, 1, 1) },
+	{ "EOR reg", NULL, arm_pseudo_eor_reg, FALSE, 0x0000000AU, 0x00000005U, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x0000000FU, NZCV(0, 0, 1, 0) },
+	{ "BICS imm", arm_pseudo_bic_imm, NULL, TRUE, 0xFFFFFFFFU, 0x7FFFFFFFU, SRType_LSL, 0U, TRUE, NZCV(0, 0, 0, 0), 0x80000000U, NZCV(1, 0, 1, 0) },
+	{ "BICS reg", NULL, arm_pseudo_bic_reg, TRUE, 0x000000FFU, 0x000000F0U, SRType_ASR, 4U, FALSE, NZCV(0, 0, 1, 0), 0x000000F0U, NZCV(0, 0, 0, 0) },
+	{ "TSTS imm", arm_pseudo_tst_imm, NULL, TRUE, 0x80000000U, 0x00FF00FFU, SRType_LSL, 0U, FALSE, NZCV(1, 0, 1, 1), 0x00000000U, NZCV(0, 1, 0, 1) },
+	{ "TSTS reg", NULL, arm_pseudo_tst_reg, TRUE, 0x80000000U, 0x40000000U, SRType_LSL, 1U, FALSE, NZCV(0, 1, 0, 0), 0x80000000U, NZCV(1, 0, 0, 0) },
+	{ "TEQS imm", arm_pseudo_teq_imm, NULL, TRUE, 0x00000005U, 0x00000005U, SRType_LSL, 0U, TRUE, NZCV(0, 0, 0, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "TEQS reg", NULL, arm_pseudo_teq_reg, TRUE, 0x00000000U, 0x80000001U, SRType_LSR, 1U, FALSE, NZCV(0, 0, 0, 1), 0x40000000U, NZCV(0, 0, 1, 1) },
+	{ "MVNS imm", arm_pseudo_mvn_imm, NULL, TRUE, 0x00000000U, 0x00000000U, SRType_LSL, 0U, TRUE, NZCV(0, 0, 0, 1), 0xFFFFFFFFU, NZCV(1, 0, 1, 1) },
+	{ "MVN imm", arm_pseudo_mvn_imm, NULL, FALSE, 0x00000000U, 0x00FF00FFU, SRType_LSL, 0U, FALSE, NZCV(0, 1, 0, 0), 0xFF00FF00U, NZCV(0, 1, 0, 0) },
+	{ "MVNS reg", NULL, arm_pseudo_mvn_reg, TRUE, 0x00000000U, 0xFFFFFFFFU, SRType_LSL, 0U, FALSE, NZCV(0, 0, 1, 0), 0x00000000U, NZCV(0, 1, 1, 0) },
+	{ "MVNS reg", NULL, arm_pseudo_mvn_reg, TRUE, 0x00000000U, 0x00000001U, SRType_ROR, 1U, FALSE, NZCV(0, 0, 0, 0), 0x7FFFFFFFU, NZCV(0, 0, 1, 0) },
+};
+
+static void test_dp_cases(void)
+{
+	TargetCoreType core;
+	uint32 i;
+
+	for (i = 0U; i < sizeof(dp_cases) / sizeof(dp_cases[0]); i++) {
+		const DpCase *t = &dp_cases[i];
+		bool writes = (t->imm_op != arm_pseudo_cmn_imm) && (t->imm_op != arm_pseudo_tst_imm) && (t->imm_op != arm_pseudo_teq_imm)
+			&& (t->reg_op != arm_pseudo_cmn_reg) && (t->reg_op != arm_pseudo_tst_reg) && (t->reg_op != arm_pseudo_teq_reg);
+		Std_ReturnType err;
+
+		test_core_init(&core, TestProfile_M, PC0);
+		core.r[0] = 0xDEADBEEFU;
+		core.r[1] = t->rn;
+		core.r[2] = t->op2;
+		core.apsr = t->apsr_before;
+		if (t->imm_op != NULL) {
+			err = dp_imm(t->imm_op, &core, ARM_COND_AL, t->setflags, 0U, 1U, t->op2, t->imm_carry);
+		}
+		else {
+			err = dp_reg(t->reg_op, &core, t->setflags, 0U, 1U, 2U, t->shift_t, t->shift_n);
+		}
+		CHECK(err == STD_E_OK, "%s case %u", t->name, i);
+		if (writes) {
+			CHECK(core.r[0] == t->result, "%s case %u: result %08x, expected %08x", t->name, i, core.r[0], t->result);
+		}
+		else {
+			CHECK(core.r[0] == 0xDEADBEEFU, "%s case %u writes Rd", t->name, i);
+		}
+		CHECK(core.apsr == t->apsr_after, "%s case %u: NZCV %x, expected %x", t->name, i, core.apsr >> 28, t->apsr_after >> 28);
+	}
+}
+
 /* Every instruction with a failing condition (NE with Z set) changes nothing. */
 static void test_condition_failed(void)
 {
 	static const DpImm imm_ops[] = {
 		arm_pseudo_add_imm, arm_pseudo_sub_imm, arm_pseudo_cmp_imm, arm_pseudo_and_imm, arm_pseudo_mov_imm,
+		arm_pseudo_adc_imm, arm_pseudo_sbc_imm, arm_pseudo_rsb_imm, arm_pseudo_cmn_imm,
+		arm_pseudo_orr_imm, arm_pseudo_orn_imm, arm_pseudo_eor_imm, arm_pseudo_bic_imm,
+		arm_pseudo_tst_imm, arm_pseudo_teq_imm, arm_pseudo_mvn_imm,
 	};
 	static const DpReg reg_ops[] = {
 		arm_pseudo_add_reg, arm_pseudo_cmp_reg, arm_pseudo_and_reg, arm_pseudo_mov_reg,
+		arm_pseudo_adc_reg, arm_pseudo_sbc_reg, arm_pseudo_rsb_reg, arm_pseudo_sub_reg,
+		arm_pseudo_cmn_reg, arm_pseudo_orr_reg, arm_pseudo_orn_reg, arm_pseudo_eor_reg,
+		arm_pseudo_bic_reg, arm_pseudo_tst_reg, arm_pseudo_teq_reg, arm_pseudo_mvn_reg,
 	};
 	TargetCoreType core;
 	TargetCoreType before;
@@ -431,6 +532,7 @@ int main(void)
 	test_add_reg();
 	test_and();
 	test_mov();
+	test_dp_cases();
 	test_condition_failed();
 	printf("%d checks, %d failures\n", checks, failures);
 	return (failures == 0) ? 0 : 1;
