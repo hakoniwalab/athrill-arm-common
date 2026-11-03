@@ -272,12 +272,36 @@ static void test_condition_failed(void)
 	CHECK(memcmp(&core, &before, sizeof(core)) == 0, "an instruction with a failing condition changed the core");
 }
 
+/* ExecuteFPCheck(): once a condition passes; its fault stops the instruction before it changes anything. */
+static void test_fp_check(void)
+{
+	TargetCoreType core;
+	TargetCoreType before;
+	arm_fp_cvt_input_type in;
+
+	init(&core);
+	core.s[0] = ONE_F;
+	core.s[1] = ONE_F;
+	CHECK(fp(arm_pseudo_vadd, &core, ARM_COND_AL, FALSE, 2U, 0U, 1U) == STD_E_OK && core.fp_checks == 1U, "checked");
+	core.apsr = ARM_APSR_Z;
+	CHECK(fp(arm_pseudo_vadd, &core, 0x1U, FALSE, 2U, 0U, 1U) == STD_E_OK && core.fp_checks == 1U, "not checked: condition failed");
+	core.apsr = 0U;
+	core.fp_check_error = STD_E_SEGV;
+	before = core;
+	CHECK(fp(arm_pseudo_vadd, &core, ARM_COND_AL, FALSE, 3U, 0U, 1U) == STD_E_SEGV, "VADD: the check's fault");
+	in = cvt_in(FALSE, 3U, 0U);
+	CHECK(cvt(arm_pseudo_vrint, &core, &in) == STD_E_SEGV, "VRINT: the check's fault");
+	core.fp_checks = before.fp_checks;
+	CHECK(memcmp(&core, &before, sizeof(core)) == 0, "nothing changed");
+}
+
 int main(void)
 {
 	test_arith();
 	test_compare();
 	test_convert();
 	test_condition_failed();
+	test_fp_check();
 	printf("%d checks, %d failures\n", checks, failures);
 	return failures == 0 ? 0 : 1;
 }

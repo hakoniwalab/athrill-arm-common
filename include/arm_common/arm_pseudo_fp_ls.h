@@ -85,8 +85,8 @@ static inline uint32 ArmFPAddress(const arm_fp_ls_input_type *in)
 static inline Std_ReturnType arm_pseudo_vldr(TargetCoreType *core, const arm_fp_ls_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	return ArmFPLoad(core, in->single_regs, in->d, ArmFPAddress(in));
 }
@@ -94,8 +94,8 @@ static inline Std_ReturnType arm_pseudo_vldr(TargetCoreType *core, const arm_fp_
 static inline Std_ReturnType arm_pseudo_vstr(TargetCoreType *core, const arm_fp_ls_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	return ArmFPStore(core, in->single_regs, in->d, ArmFPAddress(in));
 }
@@ -119,8 +119,8 @@ static inline Std_ReturnType ArmFPMultiple(TargetCoreType *core, const arm_fp_ls
 	Std_ReturnType err;
 
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	address = in->add ? in->Rn.regData : (in->Rn.regData - in->imm32);
 	if (in->wback) {

@@ -15,9 +15,9 @@ fi
 cmake -S . -B "$build" -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DATHRILL_ARM_COMMON_COVERAGE=ON >/dev/null
 cmake --build "$build" >/dev/null
 rm -f "$build"/*.profraw
-for t in test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move test_fp test_pseudo_fp_instr; do
+for t in test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move test_fp test_pseudo_fp_instr test_m_exception; do
   LLVM_PROFILE_FILE="$build/$t.profraw" "$build/$t" >/dev/null
 done
 $profdata merge -o "$build/tests.profdata" "$build"/*.profraw
-$cov report -instr-profile="$build/tests.profdata" "$build/test_pseudo" -object "$build/test_helpers" -object "$build/test_pseudo_ls" -object "$build/test_pseudo_misc" -object "$build/test_pseudo_system" -object "$build/test_pseudo_dsp" -object "$build/test_pseudo_fp_move" -object "$build/test_fp" -object "$build/test_pseudo_fp_instr" \
+$cov report -instr-profile="$build/tests.profdata" "$build/test_pseudo" -object "$build/test_helpers" -object "$build/test_pseudo_ls" -object "$build/test_pseudo_misc" -object "$build/test_pseudo_system" -object "$build/test_pseudo_dsp" -object "$build/test_pseudo_fp_move" -object "$build/test_fp" -object "$build/test_pseudo_fp_instr" -object "$build/test_m_exception" \
   include/arm_common/*.h

@@ -94,8 +94,17 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME pseudo-fp-instr COMMAND test_pseudo_fp_instr)
 
+  # The M profile's exception model, its system instructions and its SCS.
+  add_executable(test_m_exception test/test_m_exception.c)
+  target_link_libraries(test_m_exception PRIVATE athrill_arm_common)
+  target_include_directories(test_m_exception PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_m_exception PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME m-exception COMMAND test_m_exception)
+
   if(ATHRILL_ARM_COMMON_COVERAGE)
-    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move test_fp test_pseudo_fp_instr)
+    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move test_fp test_pseudo_fp_instr test_m_exception)
       target_compile_options(${t} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0)
       target_link_options(${t} PRIVATE -fprofile-instr-generate)
     endforeach()

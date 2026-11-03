@@ -53,6 +53,17 @@
  *       ITSTATE.IT<7:0> = itstate (IT). The target advances the IT state
  *       after every other instruction (ArmITAdvance) and takes the condition
  *       of an instruction in an IT block from it (ArmITCondition).
+ *   uint32 ArmITState(const TargetCoreType *core)
+ *       ITSTATE.IT<7:0> (exception entry stacks it).
+ *   uint32 ArmNextPC(const TargetCoreType *core)
+ *       The address of the next instruction as written so far (the
+ *       instruction's own branch, or the one after it).
+ *   ArmMStateType *ArmMState(const TargetCoreType *core)
+ *       M profile: the exception model's state (arm_m_exception.h), held by
+ *       the target.
+ *   void ArmCallSupervisor(TargetCoreType *core)
+ *       CallSupervisor(): SVC's exception, taken by the target when the
+ *       instruction completes (M profile: ArmMTakeSynchronous(SVCall)).
  *   uint32 ArmIPSR(const TargetCoreType *core)
  *   bool ArmHaveDSPExt(const TargetCoreType *core)
  *       The M profile's IPSR (the exception number, 0 in Thread mode) and
@@ -63,6 +74,10 @@
  *   void ArmDWrite(TargetCoreType *core, uint32 n, uint64 value)
  *       The floating-point registers S0-S31 and D0-D15 (D0-D31 with 32
  *       double registers); with 16 of them, D[n] is S[2n+1]:S[2n].
+ *   Std_ReturnType ArmExecuteFPCheck(TargetCoreType *core)
+ *       ExecuteFPCheck() of a floating-point instruction whose condition
+ *       passed: the coprocessor access check and, in the M profile, the
+ *       lazy context preservation (ArmMExecuteFPCheck); returns its fault.
  *   uint32 ArmFPSCR(const TargetCoreType *core)
  *   void ArmFPSCRWrite(TargetCoreType *core, uint32 value)
  *       FPSCR; the write keeps only the bits the profile implements.

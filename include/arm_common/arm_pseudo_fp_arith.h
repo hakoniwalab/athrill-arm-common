@@ -89,8 +89,8 @@ static inline Std_ReturnType ArmFPArith(TargetCoreType *core, const arm_fp_input
 	uint64 result;
 
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	fpscr = ArmFPSCR(core);
 	result = ArmFPOperation(op, ArmFPRead(core, in->dp_operation, in->d), ArmFPRead(core, in->dp_operation, in->n),
@@ -176,8 +176,8 @@ static inline Std_ReturnType arm_pseudo_vsqrt(TargetCoreType *core, const arm_fp
 	uint64 result;
 
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	fpscr = ArmFPSCR(core);
 	result = FPSqrt(ArmFPRead(core, in->dp_operation, in->m), N, &fpscr);
@@ -204,8 +204,8 @@ static inline Std_ReturnType ArmFPCompareInstr(TargetCoreType *core, const arm_f
 	uint64 op2;
 
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	fpscr = ArmFPSCR(core);
 	op2 = with_zero ? FPZero(FALSE, N) : ArmFPRead(core, in->dp_operation, in->m);

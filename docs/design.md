@@ -275,3 +275,40 @@ with infinity times zero, and square roots whose remainder decides the
 rounding. The branches arm_fp.h's tests do not reach are combinations the
 pseudo-code's chains of conditions rule out (an infinity of the other sign
 after its own case has returned).
+
+## The M profile's exception model
+
+`arm_m_exception.h` is the exception model of Armv7-M (B1.5) as its
+pseudo-code has it: the modes, the two stack pointers (R[13] is the selected
+one; the other is kept in the state and swapped in when the selection
+changes), PRIMASK, FAULTMASK, BASEPRI, CONTROL, the exceptions' pending,
+active, enabled and priority state, ExecutionPriority (with AIRCR.PRIGROUP),
+the choice of the exception to take, PushStack and ExceptionTaken,
+ExceptionReturn and PopStack (with its UsageFaults INVPC), the
+floating-point context with its lazy preservation (UpdateFPCCR,
+PreserveFPState, ExecuteFPCheck), and the escalation of a synchronous
+exception to HardFault (or lockup). Its state is `ArmMStateType`
+(`arm_m_types.h`), held by the target in its core and reached through the
+profile (`ArmMState`). Exceptions are taken between instructions: the target
+asks for the exception to take before each one (`ArmMPendingToTake`), and
+after one it does what the instruction asked for: an exception return (an
+EXC_RETURN value written to PC in Handler mode: the target's BXWritePC
+records it) or a synchronous exception (`ArmCallSupervisor`, a fault).
+
+`arm_m_scs.h` is the System Control Space over that state: the NVIC, the
+System Control Block, the floating-point context registers and SysTick,
+read and written by offset with a byte mask; SysTick counts any number of
+its clocks in one step (`ArmMSysTickClock`), so a target can bring it up to
+the current clock after a skip of the halted CPU. `arm_pseudo_m_system.h`
+has MRS and MSR for all the special registers, CPS and SVC.
+
+The floating-point instructions call the profile's `ArmExecuteFPCheck` once
+their condition passes (`ArmFPBegin`): in the M profile, the lazy
+preservation of a stacked context happens there, before the instruction
+changes a register.
+
+`test/test_m_exception.c` checks the model with values worked out by hand
+(frames, alignment, EXC_RETURN values, nested and invalid returns, the FP
+context at once and lazily, escalation, the special registers, the SCS
+registers, SysTick at once against tick by tick); the target's exception
+test runs scenarios against QEMU.

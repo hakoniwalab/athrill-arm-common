@@ -25,10 +25,10 @@ typedef struct {
 } arm_fp_cvt_input_type;
 
 /* if ConditionPassed() then EncodingSpecificOperations(); ExecuteFPCheck(); and FPSCR. */
-static inline bool ArmFPCvtBegin(const TargetCoreType *core, const arm_fp_cvt_input_type *in, arm_fp_output_type *out, uint32 *fpscr)
+static inline bool ArmFPCvtBegin(TargetCoreType *core, const arm_fp_cvt_input_type *in, arm_fp_output_type *out, uint32 *fpscr)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
+	if (!ArmFPBegin(core, in->cond, out)) {
 		return FALSE;
 	}
 	*fpscr = ArmFPSCR(core);
@@ -52,7 +52,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_fp(TargetCoreType *core, const arm_
 	uint64 result;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	if (in->dp_operation) {
 		result = FPConvert(ArmD(core, in->m), 64U, 32U, &fpscr);
@@ -84,7 +84,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_from_half(TargetCoreType *core, con
 	uint64 half;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	half = (ArmS(core, in->m) >> (in->top ? 16U : 0U)) & 0xFFFFU;
 	if (in->dp_operation) {
@@ -106,7 +106,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_to_half(TargetCoreType *core, const
 	uint64 half;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	if (in->dp_operation) {
 		half = FPConvert(ArmD(core, in->m), 64U, 16U, &fpscr);
@@ -132,7 +132,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_to_int(TargetCoreType *core, const 
 	uint32 N = in->dp_operation ? 64U : 32U;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	out->result = FPToFixed(ArmFPRead(core, in->dp_operation, in->m), N, 32U, 0U, in->unsigned_int,
 		ArmFPCvtRounding(in, fpscr), &fpscr);
@@ -151,7 +151,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_from_int(TargetCoreType *core, cons
 	uint32 fpscr;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	out->result = FixedToFP(ArmS(core, in->m), 32U, in->dp_operation ? 64U : 32U, 0U, in->unsigned_int, FALSE, &fpscr);
 	ArmFPWrite(core, in->dp_operation, in->d, out->result, out);
@@ -181,7 +181,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_to_fixed(TargetCoreType *core, cons
 	uint64 extended;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	result = FPToFixed(ArmFPRead(core, in->dp_operation, in->d), N, in->size, in->fraction_bits, in->unsigned_int,
 		FPRounding_ZERO, &fpscr);
@@ -202,7 +202,7 @@ static inline Std_ReturnType arm_pseudo_vcvt_from_fixed(TargetCoreType *core, co
 	uint32 N = in->dp_operation ? 64U : 32U;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	out->result = FixedToFP((uint32)ArmFPRead(core, in->dp_operation, in->d), in->size, N, in->fraction_bits, in->unsigned_int,
 		TRUE, &fpscr);
@@ -223,7 +223,7 @@ static inline Std_ReturnType arm_pseudo_vrint(TargetCoreType *core, const arm_fp
 	uint32 N = in->dp_operation ? 64U : 32U;
 
 	if (!ArmFPCvtBegin(core, in, out, &fpscr)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	out->result = FPRoundInt(ArmFPRead(core, in->dp_operation, in->m), N, ArmFPCvtRounding(in, fpscr), in->exact, &fpscr);
 	ArmFPWrite(core, in->dp_operation, in->d, out->result, out);
@@ -244,8 +244,8 @@ static inline Std_ReturnType ArmFPMaxMinInstr(TargetCoreType *core, const arm_fp
 	uint64 op2;
 
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	fpscr = ArmFPSCR(core);
 	op1 = ArmFPRead(core, in->dp_operation, in->n);

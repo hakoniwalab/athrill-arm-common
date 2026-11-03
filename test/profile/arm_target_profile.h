@@ -9,6 +9,7 @@
 #include <string.h>
 #include "std_errno.h"
 #include "arm_common/arm_types.h"
+#include "arm_common/arm_m_types.h"
 
 #define TEST_MEM_BASE	0x20000000U
 #define TEST_MEM_SIZE	256U
@@ -32,6 +33,10 @@ typedef struct {
 	uint32 ipsr;		/* IPSR (M profile) */
 	bool no_dsp;		/* without the DSP extension */
 	uint32 s[32];		/* S0-S31; D[n] = S[2n+1]:S[2n] (16 double registers) */
+	ArmMStateType m;	/* the M profile's exception model */
+	uint32 supervisor_calls;	/* CallSupervisor() */
+	uint32 fp_checks;		/* ExecuteFPCheck() */
+	Std_ReturnType fp_check_error;
 	uint32 fpscr;
 	uint32 unpriv_accesses;	/* MemU_unpriv[] accesses, to check they are used */
 	uint8 mem[TEST_MEM_SIZE];
@@ -222,6 +227,26 @@ static inline uint32 ArmIPSR(const TargetCoreType *core)
 	return core->ipsr;
 }
 
+static inline uint32 ArmITState(const TargetCoreType *core)
+{
+	return core->itstate;
+}
+
+static inline uint32 ArmNextPC(const TargetCoreType *core)
+{
+	return core->next_pc;
+}
+
+static inline ArmMStateType *ArmMState(const TargetCoreType *core)
+{
+	return (ArmMStateType *)&core->m;
+}
+
+static inline void ArmCallSupervisor(TargetCoreType *core)
+{
+	core->supervisor_calls++;
+}
+
 static inline bool ArmHaveDSPExt(const TargetCoreType *core)
 {
 	return !core->no_dsp;
@@ -259,6 +284,13 @@ static inline uint32 ArmFPSCR(const TargetCoreType *core)
 static inline void ArmFPSCRWrite(TargetCoreType *core, uint32 value)
 {
 	core->fpscr = value & TEST_FPSCR_MASK;
+}
+
+/* ExecuteFPCheck(): counted; fp_check_error makes it fail. */
+static inline Std_ReturnType ArmExecuteFPCheck(TargetCoreType *core)
+{
+	core->fp_checks++;
+	return core->fp_check_error;
 }
 
 static inline void test_core_init(TargetCoreType *core, TestProfileType profile, uint32 pc)

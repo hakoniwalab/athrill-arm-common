@@ -28,13 +28,23 @@ typedef struct {
 typedef struct {
 	bool passed;
 	uint64 result;
+	Std_ReturnType check;	/* ExecuteFPCheck()'s error, or STD_E_OK */
 } arm_fp_output_type;
 
-/* if ConditionPassed() then EncodingSpecificOperations(); ExecuteFPCheck(); */
-static inline bool ArmFPBegin(const TargetCoreType *core, uint32 cond, bool *passed)
+/*
+ * if ConditionPassed() then EncodingSpecificOperations(); ExecuteFPCheck();
+ * Returns whether to go on; if not, out->check is what to return
+ * (STD_E_OK for a failing condition).
+ */
+static inline bool ArmFPBegin(TargetCoreType *core, uint32 cond, arm_fp_output_type *out)
 {
-	*passed = ConditionHolds(cond, ArmAPSR(core));
-	return *passed;
+	out->check = STD_E_OK;
+	out->passed = ConditionHolds(cond, ArmAPSR(core));
+	if (!out->passed) {
+		return FALSE;
+	}
+	out->check = ArmExecuteFPCheck(core);
+	return out->check == STD_E_OK;
 }
 
 /* S[n] or D[n] by the precision. */
@@ -85,8 +95,8 @@ static inline uint64 VFPExpandImm(uint32 imm8, uint32 N)
 static inline Std_ReturnType arm_pseudo_vmov_imm(TargetCoreType *core, const arm_fp_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	ArmFPWrite(core, in->dp_operation, in->d, in->imm64, out);
 	return STD_E_OK;
@@ -99,8 +109,8 @@ static inline Std_ReturnType arm_pseudo_vmov_imm(TargetCoreType *core, const arm
 static inline Std_ReturnType arm_pseudo_vmov_reg(TargetCoreType *core, const arm_fp_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	ArmFPWrite(core, in->dp_operation, in->d, ArmFPRead(core, in->dp_operation, in->m), out);
 	return STD_E_OK;
@@ -120,8 +130,8 @@ static inline uint64 ArmFPSignBit(bool dp_operation)
 static inline Std_ReturnType arm_pseudo_vabs(TargetCoreType *core, const arm_fp_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	ArmFPWrite(core, in->dp_operation, in->d, ArmFPRead(core, in->dp_operation, in->m) & ~ArmFPSignBit(in->dp_operation), out);
 	return STD_E_OK;
@@ -135,8 +145,8 @@ static inline Std_ReturnType arm_pseudo_vabs(TargetCoreType *core, const arm_fp_
 static inline Std_ReturnType arm_pseudo_vneg(TargetCoreType *core, const arm_fp_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	ArmFPWrite(core, in->dp_operation, in->d, ArmFPRead(core, in->dp_operation, in->m) ^ ArmFPSignBit(in->dp_operation), out);
 	return STD_E_OK;
@@ -155,8 +165,8 @@ static inline Std_ReturnType arm_pseudo_vsel(TargetCoreType *core, const arm_fp_
 	uint32 source;
 
 	out->result = 0U;
-	if (!ArmFPBegin(core, in->cond, &out->passed)) {
-		return STD_E_OK;
+	if (!ArmFPBegin(core, in->cond, out)) {
+		return out->check;
 	}
 	source = ConditionHolds(in->sel_cond, ArmAPSR(core)) ? in->n : in->m;
 	ArmFPWrite(core, in->dp_operation, in->d, ArmFPRead(core, in->dp_operation, source), out);
@@ -177,10 +187,10 @@ typedef struct {
 } arm_fp_core_input_type;
 
 /* if ConditionPassed() then EncodingSpecificOperations(); ExecuteFPCheck(); */
-static inline bool ArmFPCoreBegin(const TargetCoreType *core, const arm_fp_core_input_type *in, arm_fp_output_type *out)
+static inline bool ArmFPCoreBegin(TargetCoreType *core, const arm_fp_core_input_type *in, arm_fp_output_type *out)
 {
 	out->result = 0U;
-	return ArmFPBegin(core, in->cond, &out->passed);
+	return ArmFPBegin(core, in->cond, out);
 }
 
 /*
@@ -190,7 +200,7 @@ static inline bool ArmFPCoreBegin(const TargetCoreType *core, const arm_fp_core_
 static inline Std_ReturnType arm_pseudo_vmov_core_s(TargetCoreType *core, const arm_fp_core_input_type *in, arm_fp_output_type *out)
 {
 	if (!ArmFPCoreBegin(core, in, out)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	if (in->to_arm_registers) {
 		ArmRWrite(core, in->Rt.regId, ArmS(core, in->fp));
@@ -211,7 +221,7 @@ static inline Std_ReturnType arm_pseudo_vmov_core_s(TargetCoreType *core, const 
 static inline Std_ReturnType arm_pseudo_vmov_core_ss(TargetCoreType *core, const arm_fp_core_input_type *in, arm_fp_output_type *out)
 {
 	if (!ArmFPCoreBegin(core, in, out)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	if (in->to_arm_registers) {
 		ArmRWrite(core, in->Rt.regId, ArmS(core, in->fp));
@@ -236,7 +246,7 @@ static inline Std_ReturnType arm_pseudo_vmov_core_d(TargetCoreType *core, const 
 	uint64 value;
 
 	if (!ArmFPCoreBegin(core, in, out)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	if (in->to_arm_registers) {
 		value = ArmD(core, in->fp);
@@ -261,7 +271,7 @@ static inline Std_ReturnType arm_pseudo_vmov_core_scalar(TargetCoreType *core, c
 	uint64 value;
 
 	if (!ArmFPCoreBegin(core, in, out)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	value = ArmD(core, in->fp);
 	if (in->to_arm_registers) {
@@ -285,7 +295,7 @@ static inline Std_ReturnType arm_pseudo_vmrs_vmsr(TargetCoreType *core, const ar
 	uint32 nzcv = ARM_APSR_N | ARM_APSR_Z | ARM_APSR_C | ARM_APSR_V;
 
 	if (!ArmFPCoreBegin(core, in, out)) {
-		return STD_E_OK;
+		return out->check;
 	}
 	if (!in->to_arm_registers) {
 		ArmFPSCRWrite(core, in->Rt.regData);
