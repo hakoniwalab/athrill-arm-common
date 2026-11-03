@@ -29,6 +29,15 @@
  *   Std_ReturnType ArmMemA_W(TargetCoreType *core, uint32 address, uint32 size, uint32 value)
  *       MemU[] and MemA[] for size 1, 2 or 4 at the current privilege
  *       (alignment checks, MPU, bus).
+ *   Std_ReturnType ArmMemU_unpriv_R(TargetCoreType *core, uint32 address, uint32 size, uint32 *value)
+ *   Std_ReturnType ArmMemU_unpriv_W(TargetCoreType *core, uint32 address, uint32 size, uint32 value)
+ *       MemU_unpriv[]: as an unprivileged access (LDRT, STRT, ...).
+ *   void ArmSetExclusiveMonitors(TargetCoreType *core, uint32 address, uint32 size)
+ *   Std_ReturnType ArmExclusiveMonitorsPass(TargetCoreType *core, uint32 address, uint32 size, bool *pass)
+ *   void ArmClearExclusiveLocal(TargetCoreType *core)
+ *       The exclusive monitors of LDREX/STREX/CLREX. ExclusiveMonitorsPass
+ *       takes the alignment fault of an unaligned address (an error) and
+ *       clears the local monitor when it passes.
  *
  * The operations return STD_E_OK, or an error for a fault the profile
  * raises (a memory fault, an invalid state); the pseudo-code then stops and

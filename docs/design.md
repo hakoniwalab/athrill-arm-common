@@ -146,6 +146,21 @@ per kind, are in `arm_pseudo_arith.h` (ADD, SUB, CMP), `arm_pseudo_logic.h`
 (AND) and `arm_pseudo_move.h` (MOV immediate and register, and the shifts as
 MOV); the other instructions follow the same pattern.
 
+## Loads and stores
+
+`arm_pseudo_ls.h` holds what the single loads and stores share: an input
+structure per addressing form (immediate, register, literal), one output
+structure, and the address steps of the pseudo-code (`offset_addr`,
+`address`, write-back, `Align(PC,4)`). Each instruction follows its own
+pseudo-code on top of them (`arm_pseudo_load.h`, `arm_pseudo_store.h`: LDR,
+LDRB, LDRH, LDRSB, LDRSH, STR, STRB, STRH, and the unprivileged forms), as
+do LDRD/STRD and LDM/LDMDB/STM/STMDB (`arm_pseudo_multiple.h`; PUSH and POP
+are STMDB and LDM on SP), the exclusive instructions
+(`arm_pseudo_exclusive.h`) and TBB/TBH (`arm_pseudo_branch.h`). The profile
+adds MemU_unpriv[] and the exclusive monitors for them. LDM loads every
+word before it writes a register, so a fault in the middle of the list
+leaves the registers as they were.
+
 ## Coverage
 
 `tools/coverage.sh` measures the headers' code coverage by the unit tests

@@ -86,8 +86,8 @@ static void test_add_imm(void)
 
 static Std_ReturnType ldr_imm(TargetCoreType *core, uint32 t, uint32 n, uint32 imm32, bool index, bool add, bool wback)
 {
-	arm_ldr_imm_input_type in;
-	arm_ldr_imm_output_type out;
+	arm_ls_imm_input_type in;
+	arm_ls_output_type out;
 
 	in.instrName = "LDR";
 	in.cond = ARM_COND_AL;
@@ -509,8 +509,8 @@ static void test_condition_failed(void)
 	}
 	CHECK(mov_rsr_cond(&core, 0x1U, TRUE, 0U, 1U, 2U, SRType_LSL) == STD_E_OK && memcmp(&core, &before, sizeof(core)) == 0, "MOV rsr skipped");
 	{
-		arm_ldr_imm_input_type in;
-		arm_ldr_imm_output_type out;
+		arm_ls_imm_input_type in;
+		arm_ls_output_type out;
 		in.instrName = "LDR";
 		in.cond = 0x1U;
 		ARM_SET_REG(&core, &in, Rt, 0U);

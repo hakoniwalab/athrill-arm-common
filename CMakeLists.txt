@@ -31,8 +31,17 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME pseudo COMMAND test_pseudo)
 
+  # Load and store pseudo-code.
+  add_executable(test_pseudo_ls test/test_pseudo_ls.c)
+  target_link_libraries(test_pseudo_ls PRIVATE athrill_arm_common)
+  target_include_directories(test_pseudo_ls PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_pseudo_ls PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME pseudo-ls COMMAND test_pseudo_ls)
+
   if(ATHRILL_ARM_COMMON_COVERAGE)
-    foreach(t test_helpers test_pseudo)
+    foreach(t test_helpers test_pseudo test_pseudo_ls)
       target_compile_options(${t} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0)
       target_link_options(${t} PRIVATE -fprofile-instr-generate)
     endforeach()

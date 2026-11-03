@@ -15,9 +15,9 @@ fi
 cmake -S . -B "$build" -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DATHRILL_ARM_COMMON_COVERAGE=ON >/dev/null
 cmake --build "$build" >/dev/null
 rm -f "$build"/*.profraw
-for t in test_helpers test_pseudo; do
+for t in test_helpers test_pseudo test_pseudo_ls; do
   LLVM_PROFILE_FILE="$build/$t.profraw" "$build/$t" >/dev/null
 done
 $profdata merge -o "$build/tests.profdata" "$build"/*.profraw
-$cov report -instr-profile="$build/tests.profdata" "$build/test_pseudo" -object "$build/test_helpers" \
+$cov report -instr-profile="$build/tests.profdata" "$build/test_pseudo" -object "$build/test_helpers" -object "$build/test_pseudo_ls" \
   include/arm_common/*.h

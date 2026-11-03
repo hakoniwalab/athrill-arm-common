@@ -25,6 +25,9 @@ typedef struct {
 	uint32 pc;		/* address of the current instruction */
 	uint32 next_pc;		/* address of the next instruction */
 	bool thumb;		/* instruction set state after an interworking write (A profile) */
+	bool exclusive_valid;	/* local exclusive monitor */
+	uint32 exclusive_address;
+	uint32 unpriv_accesses;	/* MemU_unpriv[] accesses, to check they are used */
 	uint8 mem[TEST_MEM_SIZE];
 } TargetCoreType;
 
@@ -142,6 +145,42 @@ static inline Std_ReturnType ArmMemA_W(TargetCoreType *core, uint32 address, uin
 		return STD_E_SEGV;	/* alignment fault */
 	}
 	return ArmMemU_W(core, address, size, value);
+}
+
+static inline Std_ReturnType ArmMemU_unpriv_R(TargetCoreType *core, uint32 address, uint32 size, uint32 *value)
+{
+	core->unpriv_accesses++;
+	return ArmMemU_R(core, address, size, value);
+}
+
+static inline Std_ReturnType ArmMemU_unpriv_W(TargetCoreType *core, uint32 address, uint32 size, uint32 value)
+{
+	core->unpriv_accesses++;
+	return ArmMemU_W(core, address, size, value);
+}
+
+static inline void ArmSetExclusiveMonitors(TargetCoreType *core, uint32 address, uint32 size)
+{
+	(void)size;
+	core->exclusive_valid = TRUE;
+	core->exclusive_address = address;
+}
+
+static inline Std_ReturnType ArmExclusiveMonitorsPass(TargetCoreType *core, uint32 address, uint32 size, bool *pass)
+{
+	if ((address & (size - 1U)) != 0U) {
+		return STD_E_SEGV;	/* alignment fault */
+	}
+	*pass = core->exclusive_valid && (core->exclusive_address == address);
+	if (*pass) {
+		core->exclusive_valid = FALSE;
+	}
+	return STD_E_OK;
+}
+
+static inline void ArmClearExclusiveLocal(TargetCoreType *core)
+{
+	core->exclusive_valid = FALSE;
 }
 
 static inline void test_core_init(TargetCoreType *core, TestProfileType profile, uint32 pc)
