@@ -127,6 +127,12 @@ static inline Std_ReturnType ArmResultWrite(TargetCoreType *core, uint32 d, uint
 	return STD_E_OK;
 }
 
+/* R[d]<31:16> = high; R[d]<15:0> = low; (the dual 16-bit forms) */
+static inline uint32 ArmHalfwords(uint32 high, uint32 low)
+{
+	return ((high & 0xFFFFU) << 16) | (low & 0xFFFFU);
+}
+
 /* UInt(R[s]<7:0>): the shift amount of a register-shifted register operand. */
 static inline uint32 ArmShiftAmountFromRegister(const arm_dp_rsr_input_type *in)
 {

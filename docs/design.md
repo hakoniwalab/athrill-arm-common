@@ -179,7 +179,17 @@ in `arm_helpers.h`) let the target take an instruction's condition from it
 and advance it after every instruction but IT. `arm_pseudo_system.h` also
 has the M profile's MRS and MSR for the program status registers
 (SYSm<7:3> == '00000'); the other special registers belong to the exception
-model, which is not in the common code yet. The profile
+model, which is not in the common code yet.
+
+The DSP extension: the parallel additions and subtractions share one
+function (`ArmParallel` in `arm_pseudo_parallel.h`: the operation by halfword
+or byte, and the prefix S, U, Q, UQ, SH, UH) behind one function per
+instruction, with SEL; `arm_pseudo_saturate.h` has SSAT, USAT, SSAT16,
+USAT16, QADD, QSUB, QDADD, QDSUB and PKHBT/PKHTB; `arm_pseudo_dsp_multiply.h`
+the DSP multiplies (SMUL/SMLA on halfwords, SMULW/SMLAW, the dual SMUAD,
+SMLAD, SMUSD, SMLSD, SMLALD, SMLSLD, SMMUL/SMMLA/SMMLS, USAD8/USADA8, UMAAL).
+The unit tests (`test/test_pseudo_dsp.c`) take their expected values from
+`test/model_dsp.py`. The profile
 adds MemU_unpriv[] and the exclusive monitors for them. LDM loads every
 word before it writes a register, so a fault in the middle of the list
 leaves the registers as they were.

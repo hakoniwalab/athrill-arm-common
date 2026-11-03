@@ -37,12 +37,6 @@ static inline bool ArmExtendBegin(const TargetCoreType *core, const arm_extend_i
 	return TRUE;
 }
 
-/* R[d]<31:16> = high; R[d]<15:0> = low; (the dual 16-bit forms) */
-static inline uint32 ArmHalfwords(uint32 high, uint32 low)
-{
-	return ((high & 0xFFFFU) << 16) | (low & 0xFFFFU);
-}
-
 /*
  * SXTB
  *     R[d] = SignExtend(rotated<7:0>, 32);
