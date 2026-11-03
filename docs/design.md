@@ -1,0 +1,103 @@
+# Design
+
+athrill-arm-common holds what Athrill's Arm targets share: the meaning of
+each instruction as Arm's pseudo-code gives it, the pseudo-code's helper
+functions, and the decoder generator. A target is then a combination: its
+decoders, the glue from each encoding to the pseudo-code, a profile (A or M)
+and its SoC's devices.
+
+## Where it comes from
+
+The structure is the one of
+[athrill-target-ARMv7-A](https://github.com/toppers/athrill-target-ARMv7-A),
+which splits an instruction into three layers:
+
+1. the decoder, one entry per encoding (ADD immediate A1, ...);
+2. the encoding glue, which turns the encoding's fields into the
+   pseudo-code's inputs (ARMExpandImm, DecodeImmShift, register reads);
+3. the pseudo-code function, the instruction's meaning, with its inputs and
+   outputs in structures that the trace output also prints; and the helper
+   library under it (AddWithCarry, Shift, ConditionPassed, MemA/MemU, ...).
+
+Layer 3 does not depend on the encoding: ADD immediate means the same in A32
+(A1) and in T32 (T3, T4). It is the common part. Code taken from
+athrill-target-ARMv7-A is used under this repository's MIT licence with the
+permission of its author.
+
+## What is common
+
+| Part | Common | Per target |
+|---|---|---|
+| Decoder generator (AARCHMRS) | the generator and its Armv7 rules | the generated decoders, the profile's rules (for example Cortex-M7) |
+| Encoding glue | ExpandImm, DecodeImmShift and other decode helpers | the glue functions, one per encoding |
+| Instruction meaning | pseudo-code functions with input/output structures | |
+| Helpers | shifts, AddWithCarry, saturation, bit counts, condition test, flag update | |
+| Floating point (VFP) | the VFP pseudo-code | which instructions the FPU has (FPv5 adds VSEL, VRINT, ...) |
+| Profile | the profile interface (below) | its implementation: registers, PC, exceptions, memory |
+| Devices | | interrupt controller (GIC, NVIC), SoC peripherals |
+
+## Profile interface
+
+The pseudo-code reaches the processor only through these operations, which
+each target defines (static inline, so the compiler folds them into the
+pseudo-code). Everything that differs between the A and M profiles, or
+between the ARM and Thumb states, is behind them.
+
+| Operation | A profile (ARMv7-A) | M profile (Cortex-M) |
+|---|---|---|
+| Read and write R0-R14 | banked by mode | SP is MSP or PSP |
+| APSR flags (N Z C V Q, GE) | in CPSR | in xPSR; same bit positions |
+| Address of this instruction, its length | length 4 (ARM) or 2/4 (Thumb) | length 2 or 4 |
+| Value read from PC | this + 8 (ARM), this + 4 (Thumb) | this + 4 |
+| BranchWritePC | aligns by the state | clears bit 0 |
+| BXWritePC, LoadWritePC | selects ARM or Thumb by bit 0 | bit 0 = 0 is a UsageFault (INVSTATE); EXC_RETURN in handler mode returns from the exception |
+| ALUWritePC | BXWritePC in ARM, BranchWritePC in Thumb | BranchWritePC |
+| Condition of this instruction | the cond field (ARM), the IT state (Thumb) | the IT state, or the cond field of B |
+| MemA, MemU (with privilege) | MMU or MPU, alignment rules | MPU, alignment rules |
+| Undefined, UNPREDICTABLE, faults | Undefined exception | UsageFault (UNDEFINSTR, NOCP, INVSTATE) |
+| Status registers by instruction (MRS, MSR, CPS) | CPSR, SPSR, modes | SYSm registers, PRIMASK, BASEPRI, CONTROL |
+| Exception entry and return | modes, vectors | stacking, NVIC, EXC_RETURN |
+
+The last two rows are not pseudo-code the profiles share: each profile has
+its own instructions for them (MRS/MSR differ in encoding and meaning) and
+implements them in the target.
+
+## Layout
+
+```
+include/arm_common/
+  arm_types.h          register, flag and shift types of the pseudo-code
+  arm_helpers.h        pure helpers (shifts, AddWithCarry, ExpandImm, ...)
+  arm_profile.h        the profile interface: what a target must define
+  arm_pseudo_*.h       pseudo-code functions, by group (arithmetic, load, ...)
+tools/                 decoder generator (AARCHMRS), cross-check tools
+test/                  helper and pseudo-code tests against a test profile
+```
+
+A target finds this repository next to its checkout (`../athrill-arm-common`),
+as it finds the Athrill core, and includes `arm_profile.h` after defining its
+`TargetCore`.
+
+## Rules
+
+- The pseudo-code functions follow Arm's pseudo-code line by line, with the
+  pseudo-code in a comment above the C, as athrill-target-ARMv7-A does. One
+  statement per line.
+- A pseudo-code function takes the core, its input structure and its output
+  structure. The trace prints both; with trace off they cost nothing, since
+  the functions are inline.
+- A behaviour that only one profile has does not go into a common function
+  as a branch on the profile; it goes behind the profile interface.
+- Instruction tests check results against values worked out from Arm's
+  pseudo-code, not against the implementation's own output.
+
+## First steps
+
+1. Helpers and types from athrill-target-ARMv7-A, made independent of the
+   A profile (no CPSR modes, no instruction-set state inside them), with
+   tests.
+2. Three instructions through the STM32 target: ADD (immediate), LDR
+   (immediate) and B, each in its 16- and 32-bit encodings.
+3. The decoder generator moves here from athrill-target-stm32.
+4. athrill-target-ARMv7-A on the common part, when its maintainers decide to
+   take it in.
