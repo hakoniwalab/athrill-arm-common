@@ -63,7 +63,8 @@ between the ARM and Thumb states, is behind them.
 In C (`include/arm_common/arm_profile.h` lists the signatures): `ArmR`,
 `ArmRWrite`, `ArmPC`, `ArmCurrentInstrSet`, `ArmAPSR`, `ArmAPSRWrite`,
 `ArmBranchWritePC`, `ArmBXWritePC`, `ArmBLXWritePC`, `ArmLoadWritePC`,
-`ArmALUWritePC`, `ArmMemU_R/W` and
+`ArmALUWritePC`, `ArmIntegerZeroDivideTrappingEnabled`,
+`ArmGenerateIntegerZeroDivide`, `ArmMemU_R/W` and
 `ArmMemA_R/W`, defined by the target's `arm_target_profile.h`. A write to PC
 sets the address of the next instruction; without one the target goes on to
 the following instruction. An operation returns an error for a fault, and the
@@ -160,7 +161,17 @@ LDRB, LDRH, LDRSB, LDRSH, STR, STRB, STRH, and the unprivileged forms), as
 do LDRD/STRD and LDM/LDMDB/STM/STMDB (`arm_pseudo_multiple.h`; PUSH and POP
 are STMDB and LDM on SP), the exclusive instructions
 (`arm_pseudo_exclusive.h`) and TBB/TBH (`arm_pseudo_branch.h`, with B, BL,
-BLX (register), CBZ and CBNZ). The profile
+BLX (register), CBZ and CBNZ).
+
+The extend instructions (`arm_pseudo_extend.h`), the bitfield instructions
+and REV/REV16/REVSH/RBIT/CLZ (`arm_pseudo_bitfield.h`) and the multiply and
+divide instructions (`arm_pseudo_multiply.h`) write a register that may not
+be PC (`ArmResultWrite` returns `STD_E_INVALID` for it). Division by zero
+asks the profile (`ArmIntegerZeroDivideTrappingEnabled`,
+`ArmGenerateIntegerZeroDivide`: the M profile's CCR.DIV_0_TRP). ADR is in
+`arm_pseudo_arith.h`, MOVT in `arm_pseudo_move.h`. Their unit tests
+(`test/test_pseudo_misc.c`) take the expected values from an independent
+model in Python (`test/model_misc.py`). The profile
 adds MemU_unpriv[] and the exclusive monitors for them. LDM loads every
 word before it writes a register, so a fault in the middle of the list
 leaves the registers as they were.

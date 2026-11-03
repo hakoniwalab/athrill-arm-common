@@ -262,4 +262,40 @@ static inline Std_ReturnType arm_pseudo_cmn_reg(TargetCoreType *core, const arm_
 	return ArmDataProcessingFlags(core, result, out);
 }
 
+/*
+ * ADR
+ */
+typedef struct {
+	const char *instrName;
+	PseudoCodeConditionDataType cond;
+	PseudoCodeRegisterDataType Rd;
+	PseudoCodeImmediateData32Type imm32;
+	bool add;
+} arm_adr_input_type;
+
+/*
+ * if ConditionPassed() then
+ *     EncodingSpecificOperations();
+ *     result = if add then (Align(PC,4) + imm32) else (Align(PC,4) - imm32);
+ *     if d == 15 then          // Can only occur for ARM encodings
+ *         ALUWritePC(result);
+ *     else
+ *         R[d] = result;
+ */
+static inline Std_ReturnType arm_pseudo_adr(TargetCoreType *core, const arm_adr_input_type *in, arm_dp_output_type *out)
+{
+	uint32 result;
+
+	if (!ArmDataProcessingBegin(core, in->cond, &in->Rd, out)) {
+		return STD_E_OK;
+	}
+	if (in->add) {
+		result = Align(ArmPC(core), 4U) + in->imm32;
+	}
+	else {
+		result = Align(ArmPC(core), 4U) - in->imm32;
+	}
+	return ArmDataProcessingWrite(core, in->Rd.regId, result, FALSE, out);
+}
+
 #endif /* ARM_COMMON_ARM_PSEUDO_ARITH_H */

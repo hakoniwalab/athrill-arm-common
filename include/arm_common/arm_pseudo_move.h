@@ -117,4 +117,22 @@ static inline Std_ReturnType arm_pseudo_mvn_reg(TargetCoreType *core, const arm_
 	return ArmDataProcessingWrite(core, in->Rd.regId, result, in->setflags, out);
 }
 
+/*
+ * MOVT (imm32 holds imm16)
+ *     if ConditionPassed() then
+ *         EncodingSpecificOperations();
+ *         R[d]<31:16> = imm16;
+ *         // R[d]<15:0> unchanged
+ */
+static inline Std_ReturnType arm_pseudo_movt(TargetCoreType *core, const arm_dp_imm_input_type *in, arm_dp_output_type *out)
+{
+	uint32 result;
+
+	if (!ArmDataProcessingBegin(core, in->cond, &in->Rd, out)) {
+		return STD_E_OK;
+	}
+	result = ((in->imm32 & 0xFFFFU) << 16) | (in->Rd.regData & 0xFFFFU);
+	return ArmResultWrite(core, in->Rd.regId, result, out);
+}
+
 #endif /* ARM_COMMON_ARM_PSEUDO_MOVE_H */

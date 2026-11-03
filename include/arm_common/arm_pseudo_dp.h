@@ -112,6 +112,21 @@ static inline Std_ReturnType ArmDataProcessingFlags(TargetCoreType *core, uint32
 	return STD_E_OK;
 }
 
+/*
+ * The end of an instruction whose d == 15 is UNPREDICTABLE (extend,
+ * bitfield, multiply, ...):
+ *     R[d] = result;
+ */
+static inline Std_ReturnType ArmResultWrite(TargetCoreType *core, uint32 d, uint32 result, arm_dp_output_type *out)
+{
+	out->Rd.regData = result;
+	if (d == ARM_REG_PC) {
+		return STD_E_INVALID;
+	}
+	ArmRWrite(core, d, result);
+	return STD_E_OK;
+}
+
 /* UInt(R[s]<7:0>): the shift amount of a register-shifted register operand. */
 static inline uint32 ArmShiftAmountFromRegister(const arm_dp_rsr_input_type *in)
 {

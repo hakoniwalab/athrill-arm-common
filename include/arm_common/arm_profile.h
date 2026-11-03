@@ -43,6 +43,12 @@
  *       takes the alignment fault of an unaligned address (an error) and
  *       clears the local monitor when it passes.
  *
+ *   bool ArmIntegerZeroDivideTrappingEnabled(const TargetCoreType *core)
+ *   Std_ReturnType ArmGenerateIntegerZeroDivide(TargetCoreType *core)
+ *       SDIV and UDIV by zero: whether it traps (the M profile's
+ *       CCR.DIV_0_TRP), and the trap (a UsageFault DIVBYZERO; returns its
+ *       error).
+ *
  * The operations return STD_E_OK, or an error for a fault the profile
  * raises (a memory fault, an invalid state); the pseudo-code then stops and
  * returns it. The pseudo-code returns STD_E_INVALID for an UNPREDICTABLE case

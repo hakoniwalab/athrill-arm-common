@@ -40,8 +40,17 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME pseudo-ls COMMAND test_pseudo_ls)
 
+  # Extend, bitfield, bit-operation, multiply and divide pseudo-code.
+  add_executable(test_pseudo_misc test/test_pseudo_misc.c)
+  target_link_libraries(test_pseudo_misc PRIVATE athrill_arm_common)
+  target_include_directories(test_pseudo_misc PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_pseudo_misc PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME pseudo-misc COMMAND test_pseudo_misc)
+
   if(ATHRILL_ARM_COMMON_COVERAGE)
-    foreach(t test_helpers test_pseudo test_pseudo_ls)
+    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc)
       target_compile_options(${t} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0)
       target_link_options(${t} PRIVATE -fprofile-instr-generate)
     endforeach()

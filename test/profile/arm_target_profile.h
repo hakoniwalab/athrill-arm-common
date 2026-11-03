@@ -27,6 +27,7 @@ typedef struct {
 	bool thumb;		/* instruction set state after an interworking write (A profile) */
 	bool exclusive_valid;	/* local exclusive monitor */
 	uint32 exclusive_address;
+	bool div_0_trp;		/* CCR.DIV_0_TRP (M profile) */
 	uint32 unpriv_accesses;	/* MemU_unpriv[] accesses, to check they are used */
 	uint8 mem[TEST_MEM_SIZE];
 } TargetCoreType;
@@ -193,6 +194,17 @@ static inline Std_ReturnType ArmExclusiveMonitorsPass(TargetCoreType *core, uint
 static inline void ArmClearExclusiveLocal(TargetCoreType *core)
 {
 	core->exclusive_valid = FALSE;
+}
+
+static inline bool ArmIntegerZeroDivideTrappingEnabled(const TargetCoreType *core)
+{
+	return (core->profile == TestProfile_M) && core->div_0_trp;
+}
+
+static inline Std_ReturnType ArmGenerateIntegerZeroDivide(TargetCoreType *core)
+{
+	(void)core;
+	return STD_E_EXEC;	/* UsageFault (DIVBYZERO) */
 }
 
 static inline void test_core_init(TargetCoreType *core, TestProfileType profile, uint32 pc)
