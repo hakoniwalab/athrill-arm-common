@@ -87,4 +87,112 @@ static inline Std_ReturnType arm_pseudo_tbh(TargetCoreType *core, const arm_tb_i
 	return ArmTableBranch(core, in, TRUE, out);
 }
 
+#define ARM_REG_LR	14U
+
+/*
+ * BL (immediate)
+ */
+
+/*
+ * if ConditionPassed() then
+ *     EncodingSpecificOperations();
+ *     if CurrentInstrSet() == InstrSet_ARM then
+ *         LR = PC - 4;
+ *     else
+ *         LR = PC<31:1> : '1';
+ *     BranchWritePC(PC + imm32);
+ *
+ * (Armv7-A's BL, whose target instruction set is the current one; BLX
+ * (immediate), which changes it, is not here. Armv7-M's BL is the Thumb case.)
+ */
+static inline Std_ReturnType arm_pseudo_bl(TargetCoreType *core, const arm_b_input_type *in, arm_b_output_type *out)
+{
+	out->target = 0U;
+	out->passed = ConditionHolds(in->cond, ArmAPSR(core));
+	if (!out->passed) {
+		return STD_E_OK;
+	}
+	if (ArmCurrentInstrSet(core) == InstrSet_ARM) {
+		ArmRWrite(core, ARM_REG_LR, ArmPC(core) - 4U);
+	}
+	else {
+		ArmRWrite(core, ARM_REG_LR, ArmPC(core) | 1U);
+	}
+	out->target = ArmPC(core) + in->imm32;
+	return ArmBranchWritePC(core, out->target);
+}
+
+/*
+ * BLX (register)
+ */
+typedef struct {
+	const char *instrName;
+	PseudoCodeConditionDataType cond;
+	PseudoCodeRegisterDataType Rm;
+} arm_blx_reg_input_type;
+
+/*
+ * if ConditionPassed() then
+ *     EncodingSpecificOperations();
+ *     target = R[m];
+ *     if CurrentInstrSet() == InstrSet_ARM then
+ *         next_instr_addr = PC - 4;
+ *         LR = next_instr_addr;
+ *     else
+ *         next_instr_addr = PC - 2;
+ *         LR = next_instr_addr<31:1> : '1';
+ *     BLXWritePC(target);
+ *
+ * (Armv7-A writes PC with BXWritePC, Armv7-M with BLXWritePC; the profile's
+ * ArmBLXWritePC is the one of its profile.)
+ */
+static inline Std_ReturnType arm_pseudo_blx_reg(TargetCoreType *core, const arm_blx_reg_input_type *in, arm_b_output_type *out)
+{
+	uint32 next_instr_addr;
+
+	out->target = 0U;
+	out->passed = ConditionHolds(in->cond, ArmAPSR(core));
+	if (!out->passed) {
+		return STD_E_OK;
+	}
+	out->target = in->Rm.regData;
+	if (ArmCurrentInstrSet(core) == InstrSet_ARM) {
+		next_instr_addr = ArmPC(core) - 4U;
+		ArmRWrite(core, ARM_REG_LR, next_instr_addr);
+	}
+	else {
+		next_instr_addr = ArmPC(core) - 2U;
+		ArmRWrite(core, ARM_REG_LR, next_instr_addr | 1U);
+	}
+	return ArmBLXWritePC(core, out->target);
+}
+
+/*
+ * CBZ, CBNZ
+ */
+typedef struct {
+	const char *instrName;
+	PseudoCodeRegisterDataType Rn;
+	PseudoCodeImmediateData32Type imm32;
+	bool nonzero;
+} arm_cb_input_type;
+
+/*
+ * EncodingSpecificOperations();
+ * if nonzero != IsZero(R[n]) then
+ *     BranchWritePC(PC + imm32);
+ *
+ * (No ConditionPassed(): CBZ and CBNZ are not conditional.)
+ */
+static inline Std_ReturnType arm_pseudo_cb(TargetCoreType *core, const arm_cb_input_type *in, arm_b_output_type *out)
+{
+	out->target = 0U;
+	out->passed = (in->nonzero != (in->Rn.regData == 0U));
+	if (!out->passed) {
+		return STD_E_OK;
+	}
+	out->target = ArmPC(core) + in->imm32;
+	return ArmBranchWritePC(core, out->target);
+}
+
 #endif /* ARM_COMMON_ARM_PSEUDO_BRANCH_H */

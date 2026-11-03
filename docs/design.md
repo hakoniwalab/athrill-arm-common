@@ -51,7 +51,9 @@ between the ARM and Thumb states, is behind them.
 | Value read from PC | this + 8 (ARM), this + 4 (Thumb) | this + 4 |
 | BranchWritePC | aligns by the state | clears bit 0 |
 | BXWritePC, LoadWritePC | selects ARM or Thumb by bit 0 | bit 0 = 0 is a UsageFault (INVSTATE); EXC_RETURN in handler mode returns from the exception |
+| BLXWritePC | BXWritePC | BXWritePC without the exception return |
 | ALUWritePC | BXWritePC in ARM, BranchWritePC in Thumb | BranchWritePC |
+| CurrentInstrSet() | ARM or Thumb | Thumb |
 | Condition of this instruction | the cond field (ARM), the IT state (Thumb) | the IT state, or the cond field of B |
 | MemA, MemU (with privilege) | MMU or MPU, alignment rules | MPU, alignment rules |
 | Undefined, UNPREDICTABLE, faults | Undefined exception | UsageFault (UNDEFINSTR, NOCP, INVSTATE) |
@@ -59,8 +61,9 @@ between the ARM and Thumb states, is behind them.
 | Exception entry and return | modes, vectors | stacking, NVIC, EXC_RETURN |
 
 In C (`include/arm_common/arm_profile.h` lists the signatures): `ArmR`,
-`ArmRWrite`, `ArmPC`, `ArmAPSR`, `ArmAPSRWrite`, `ArmBranchWritePC`,
-`ArmBXWritePC`, `ArmLoadWritePC`, `ArmALUWritePC`, `ArmMemU_R/W` and
+`ArmRWrite`, `ArmPC`, `ArmCurrentInstrSet`, `ArmAPSR`, `ArmAPSRWrite`,
+`ArmBranchWritePC`, `ArmBXWritePC`, `ArmBLXWritePC`, `ArmLoadWritePC`,
+`ArmALUWritePC`, `ArmMemU_R/W` and
 `ArmMemA_R/W`, defined by the target's `arm_target_profile.h`. A write to PC
 sets the address of the next instruction; without one the target goes on to
 the following instruction. An operation returns an error for a fault, and the
@@ -156,7 +159,8 @@ pseudo-code on top of them (`arm_pseudo_load.h`, `arm_pseudo_store.h`: LDR,
 LDRB, LDRH, LDRSB, LDRSH, STR, STRB, STRH, and the unprivileged forms), as
 do LDRD/STRD and LDM/LDMDB/STM/STMDB (`arm_pseudo_multiple.h`; PUSH and POP
 are STMDB and LDM on SP), the exclusive instructions
-(`arm_pseudo_exclusive.h`) and TBB/TBH (`arm_pseudo_branch.h`). The profile
+(`arm_pseudo_exclusive.h`) and TBB/TBH (`arm_pseudo_branch.h`, with B, BL,
+BLX (register), CBZ and CBNZ). The profile
 adds MemU_unpriv[] and the exclusive monitors for them. LDM loads every
 word before it writes a register, so a fault in the middle of the list
 leaves the registers as they were.

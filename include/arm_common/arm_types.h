@@ -35,6 +35,12 @@ typedef enum {
 	SRType_RRX,
 } SRType;
 
+/* Instruction sets of CurrentInstrSet(). */
+typedef enum {
+	InstrSet_ARM = 0,
+	InstrSet_Thumb,
+} ArmInstrSet;
+
 /* Condition flags an instruction computes. */
 typedef struct {
 	bool negative;

@@ -532,6 +532,94 @@ static void test_table_branch(void)
 	CHECK(tb(arm_pseudo_tbh, &core, 0x1U, 1U, 2U) == STD_E_OK && core.next_pc == 0U, "TBH skipped");
 }
 
+static Std_ReturnType bl(TargetCoreType *core, uint32 cond, sint32 offset)
+{
+	arm_b_input_type in;
+	arm_b_output_type out;
+
+	in.instrName = "BL";
+	in.cond = cond;
+	in.imm32 = (uint32)offset;
+	return arm_pseudo_bl(core, &in, &out);
+}
+
+static Std_ReturnType blx(TargetCoreType *core, uint32 cond, uint32 m)
+{
+	arm_blx_reg_input_type in;
+	arm_b_output_type out;
+
+	in.instrName = "BLX";
+	in.cond = cond;
+	ARM_SET_REG(core, &in, Rm, m);
+	return arm_pseudo_blx_reg(core, &in, &out);
+}
+
+static Std_ReturnType cb(TargetCoreType *core, bool nonzero, uint32 n, uint32 imm32)
+{
+	arm_cb_input_type in;
+	arm_b_output_type out;
+
+	in.instrName = nonzero ? "CBNZ" : "CBZ";
+	ARM_SET_REG(core, &in, Rn, n);
+	in.imm32 = imm32;
+	in.nonzero = nonzero;
+	return arm_pseudo_cb(core, &in, &out);
+}
+
+static void test_branch_link(void)
+{
+	TargetCoreType core;
+
+	/* BL, Thumb (a 32-bit encoding): LR = address + 4 with bit 0 set, target = address + 4 + imm32. */
+	init(&core, TestProfile_M);
+	CHECK(bl(&core, ARM_COND_AL, -0x104) == STD_E_OK && core.r[14] == PC0 + 5U && core.next_pc == PC0 - 0x100U,
+	      "BL Thumb LR %08x PC %08x", core.r[14], core.next_pc);
+	/* BL, ARM: LR = address + 4, target = address + 8 + imm32. */
+	init(&core, TestProfile_A_ARM);
+	CHECK(bl(&core, ARM_COND_AL, 0x400) == STD_E_OK && core.r[14] == PC0 + 4U && core.next_pc == PC0 + 0x408U,
+	      "BL ARM LR %08x PC %08x", core.r[14], core.next_pc);
+	/* BLNE with Z set: neither LR nor PC changes. */
+	init(&core, TestProfile_A_ARM);
+	core.apsr = ARM_APSR_Z;
+	core.r[14] = 0x5555U;
+	CHECK(bl(&core, 0x1U, 0x400) == STD_E_OK && core.r[14] == 0x5555U && core.next_pc == PC0 + 4U, "BLNE skipped");
+
+	/* BLX r3, Thumb (16-bit): LR = address + 2 with bit 0 set; LR as Rm is read before it is written. */
+	init(&core, TestProfile_M);
+	core.r[3] = 0x08001235U;
+	CHECK(blx(&core, ARM_COND_AL, 3U) == STD_E_OK && core.r[14] == PC0 + 3U && core.next_pc == 0x08001234U,
+	      "BLX Thumb LR %08x PC %08x", core.r[14], core.next_pc);
+	init(&core, TestProfile_M);
+	core.r[14] = 0x08002001U;
+	CHECK(blx(&core, ARM_COND_AL, 14U) == STD_E_OK && core.r[14] == PC0 + 3U && core.next_pc == 0x08002000U, "BLX lr");
+	/* M profile: a target with bit 0 clear is INVSTATE, after LR is written. */
+	init(&core, TestProfile_M);
+	core.r[3] = 0x08001234U;
+	CHECK(blx(&core, ARM_COND_AL, 3U) == STD_E_EXEC && core.r[14] == PC0 + 3U, "BLX Thumb INVSTATE");
+	/* BLX r3, ARM: LR = address + 4; bit 0 of the target selects Thumb. */
+	init(&core, TestProfile_A_ARM);
+	core.r[3] = 0x08001235U;
+	CHECK(blx(&core, ARM_COND_AL, 3U) == STD_E_OK && core.r[14] == PC0 + 4U && core.next_pc == 0x08001234U && core.thumb,
+	      "BLX ARM LR %08x PC %08x", core.r[14], core.next_pc);
+	init(&core, TestProfile_A_ARM);
+	core.apsr = ARM_APSR_Z;
+	core.r[14] = 0x5555U;
+	CHECK(blx(&core, 0x1U, 3U) == STD_E_OK && core.r[14] == 0x5555U && core.next_pc == PC0 + 4U, "BLXNE skipped");
+
+	/* CBZ / CBNZ: target = address + 4 + imm32 when R[n] is (not) zero. */
+	init(&core, TestProfile_M);
+	core.r[2] = 0U;
+	CHECK(cb(&core, FALSE, 2U, 0x7EU) == STD_E_OK && core.next_pc == PC0 + 0x82U, "CBZ taken %08x", core.next_pc);
+	init(&core, TestProfile_M);
+	CHECK(cb(&core, TRUE, 2U, 0x7EU) == STD_E_OK && core.next_pc == PC0 + 2U, "CBNZ not taken");
+	init(&core, TestProfile_M);
+	core.r[2] = 0x80000000U;
+	CHECK(cb(&core, FALSE, 2U, 0x10U) == STD_E_OK && core.next_pc == PC0 + 2U, "CBZ not taken");
+	init(&core, TestProfile_M);
+	core.r[2] = 0x80000000U;
+	CHECK(cb(&core, TRUE, 2U, 0x10U) == STD_E_OK && core.next_pc == PC0 + 0x14U, "CBNZ taken");
+}
+
 /* Every load and store with a failing condition (NE with Z set) changes nothing. */
 static void test_condition_failed(void)
 {
@@ -568,6 +656,7 @@ int main(void)
 	test_multiple();
 	test_exclusive();
 	test_table_branch();
+	test_branch_link();
 	test_condition_failed();
 	printf("%d checks, %d failures\n", checks, failures);
 	return (failures == 0) ? 0 : 1;

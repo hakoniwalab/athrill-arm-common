@@ -13,12 +13,16 @@
  *   uint32 ArmPC(const TargetCoreType *core)
  *       The value an instruction reads from PC: its address + 8 in ARM
  *       state, + 4 in Thumb state.
+ *   ArmInstrSet ArmCurrentInstrSet(const TargetCoreType *core)
+ *       CurrentInstrSet(): InstrSet_ARM or InstrSet_Thumb (always Thumb in
+ *       the M profile).
  *   uint32 ArmAPSR(const TargetCoreType *core)
  *   void ArmAPSRWrite(TargetCoreType *core, uint32 apsr)
  *       The APSR flags (N, Z, C, V, Q, GE at their architectural positions;
  *       other bits are ignored on write).
  *   Std_ReturnType ArmBranchWritePC(TargetCoreType *core, uint32 address)
  *   Std_ReturnType ArmBXWritePC(TargetCoreType *core, uint32 address)
+ *   Std_ReturnType ArmBLXWritePC(TargetCoreType *core, uint32 address)
  *   Std_ReturnType ArmLoadWritePC(TargetCoreType *core, uint32 address)
  *   Std_ReturnType ArmALUWritePC(TargetCoreType *core, uint32 address)
  *       The pseudo-code's writes to PC: the address of the next instruction.

@@ -46,6 +46,11 @@ static inline uint32 ArmPC(const TargetCoreType *core)
 	return core->pc + ((core->profile == TestProfile_A_ARM) ? 8U : 4U);
 }
 
+static inline ArmInstrSet ArmCurrentInstrSet(const TargetCoreType *core)
+{
+	return (core->profile == TestProfile_A_ARM) ? InstrSet_ARM : InstrSet_Thumb;
+}
+
 static inline uint32 ArmAPSR(const TargetCoreType *core)
 {
 	return core->apsr;
@@ -88,6 +93,13 @@ static inline Std_ReturnType ArmBXWritePC(TargetCoreType *core, uint32 address)
 		return STD_E_INVALID;	/* UNPREDICTABLE */
 	}
 	return STD_E_OK;
+}
+
+/* BLXWritePC: the A profile's BXWritePC; in the M profile, the same
+ * without an exception return. */
+static inline Std_ReturnType ArmBLXWritePC(TargetCoreType *core, uint32 address)
+{
+	return ArmBXWritePC(core, address);
 }
 
 static inline Std_ReturnType ArmLoadWritePC(TargetCoreType *core, uint32 address)
