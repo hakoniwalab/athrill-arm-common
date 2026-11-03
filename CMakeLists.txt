@@ -18,4 +18,13 @@ if(BUILD_TESTING)
     target_compile_options(test_helpers PRIVATE -Wall -Wextra -Werror)
   endif()
   add_test(NAME helpers COMMAND test_helpers)
+
+  # Pseudo-code through a test profile (test/profile/arm_target_profile.h).
+  add_executable(test_pseudo test/test_pseudo.c)
+  target_link_libraries(test_pseudo PRIVATE athrill_arm_common)
+  target_include_directories(test_pseudo PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_pseudo PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME pseudo COMMAND test_pseudo)
 endif()

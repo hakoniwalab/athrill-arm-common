@@ -58,6 +58,18 @@ between the ARM and Thumb states, is behind them.
 | Status registers by instruction (MRS, MSR, CPS) | CPSR, SPSR, modes | SYSm registers, PRIMASK, BASEPRI, CONTROL |
 | Exception entry and return | modes, vectors | stacking, NVIC, EXC_RETURN |
 
+In C (`include/arm_common/arm_profile.h` lists the signatures): `ArmR`,
+`ArmRWrite`, `ArmPC`, `ArmAPSR`, `ArmAPSRWrite`, `ArmBranchWritePC`,
+`ArmBXWritePC`, `ArmLoadWritePC`, `ArmALUWritePC`, `ArmMemU_R/W` and
+`ArmMemA_R/W`, defined by the target's `arm_target_profile.h`. A write to PC
+sets the address of the next instruction; without one the target goes on to
+the following instruction. An operation returns an error for a fault, and the
+pseudo-code stops and returns it; the pseudo-code itself returns
+`STD_E_INVALID` for an UNPREDICTABLE case it detects. The condition is not an
+operation: the encoding glue puts it in the input structure (the cond field,
+or the IT state in Thumb state), and the pseudo-code tests it with
+`ConditionHolds` on the APSR.
+
 The last two rows are not pseudo-code the profiles share: each profile has
 its own instructions for them (MRS/MSR differ in encoding and meaning) and
 implements them in the target.
@@ -71,7 +83,8 @@ include/arm_common/
   arm_profile.h        the profile interface: what a target must define
   arm_pseudo_*.h       pseudo-code functions, by group (arithmetic, load, ...)
 tools/                 decoder generator (AARCHMRS), cross-check tools
-test/                  helper and pseudo-code tests against a test profile
+test/                  helper and pseudo-code tests
+test/profile/          the test profile (A profile in ARM state, or M profile)
 ```
 
 A target finds this repository next to its checkout (`../athrill-arm-common`),
@@ -125,7 +138,11 @@ for every shift amount from 1 to 255, and against values worked out by hand
    A profile (no CPSR modes, no instruction-set state inside them), with
    tests.
 2. Three instructions through the STM32 target: ADD (immediate), LDR
-   (immediate) and B, each in its 16- and 32-bit encodings.
+   (immediate) and B, each in its 16- and 32-bit encodings. Done:
+   `arm_pseudo_arith.h`, `arm_pseudo_load.h` and `arm_pseudo_branch.h`, tested
+   here through a test profile that behaves as the A profile (ARM state) or
+   the M profile (`test/profile`, `test/test_pseudo.c`), and in
+   athrill-target-stm32 by a bare-metal program run on Athrill.
 3. The decoder generator moves here from athrill-target-stm32.
 4. athrill-target-ARMv7-A on the common part, when its maintainers decide to
    take it in.
