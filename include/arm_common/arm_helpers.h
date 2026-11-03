@@ -656,4 +656,45 @@ static inline uint32 ApsrUpdateNZCV(uint32 apsr, uint32 result, PseudoCodeStatus
 	return (apsr & ~(ARM_APSR_N | ARM_APSR_Z | ARM_APSR_C | ARM_APSR_V)) | nzcv;
 }
 
+
+/*
+ * The IT state of the Thumb instruction set (ITSTATE.IT<7:0>: the base
+ * condition in bits 7:5, the condition's low bit and the rest of the block
+ * in bits 4:0).
+ */
+
+/* InITBlock(): return (ITSTATE.IT<3:0> != '0000'); */
+static inline bool ArmInITBlock(uint32 itstate)
+{
+	return (itstate & 0xFU) != 0U;
+}
+
+/* LastInITBlock(): return (ITSTATE.IT<3:0> == '1000'); */
+static inline bool ArmLastInITBlock(uint32 itstate)
+{
+	return (itstate & 0xFU) == 0x8U;
+}
+
+/* The condition of an instruction in an IT block: ITSTATE.IT<7:4>. */
+static inline uint32 ArmITCondition(uint32 itstate)
+{
+	return (itstate >> 4) & 0xFU;
+}
+
+/*
+ * ITAdvance()
+ *     if ITSTATE.IT<2:0> == '000' then
+ *         ITSTATE.IT = '00000000';
+ *     else
+ *         ITSTATE.IT<4:0> = LSL(ITSTATE.IT<4:0>, 1);
+ * Returns the new IT state.
+ */
+static inline uint32 ArmITAdvance(uint32 itstate)
+{
+	if ((itstate & 0x7U) == 0U) {
+		return 0U;
+	}
+	return (itstate & 0xE0U) | ((itstate << 1) & 0x1FU);
+}
+
 #endif /* ARM_COMMON_ARM_HELPERS_H */

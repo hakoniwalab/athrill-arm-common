@@ -28,6 +28,9 @@ typedef struct {
 	bool exclusive_valid;	/* local exclusive monitor */
 	uint32 exclusive_address;
 	bool div_0_trp;		/* CCR.DIV_0_TRP (M profile) */
+	uint32 itstate;		/* ITSTATE.IT<7:0> */
+	uint32 ipsr;		/* IPSR (M profile) */
+	bool no_dsp;		/* without the DSP extension */
 	uint32 unpriv_accesses;	/* MemU_unpriv[] accesses, to check they are used */
 	uint8 mem[TEST_MEM_SIZE];
 } TargetCoreType;
@@ -205,6 +208,21 @@ static inline Std_ReturnType ArmGenerateIntegerZeroDivide(TargetCoreType *core)
 {
 	(void)core;
 	return STD_E_EXEC;	/* UsageFault (DIVBYZERO) */
+}
+
+static inline void ArmITStateWrite(TargetCoreType *core, uint32 itstate)
+{
+	core->itstate = itstate;
+}
+
+static inline uint32 ArmIPSR(const TargetCoreType *core)
+{
+	return core->ipsr;
+}
+
+static inline bool ArmHaveDSPExt(const TargetCoreType *core)
+{
+	return !core->no_dsp;
 }
 
 static inline void test_core_init(TargetCoreType *core, TestProfileType profile, uint32 pc)

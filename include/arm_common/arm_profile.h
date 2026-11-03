@@ -49,6 +49,15 @@
  *       CCR.DIV_0_TRP), and the trap (a UsageFault DIVBYZERO; returns its
  *       error).
  *
+ *   void ArmITStateWrite(TargetCoreType *core, uint32 itstate)
+ *       ITSTATE.IT<7:0> = itstate (IT). The target advances the IT state
+ *       after every other instruction (ArmITAdvance) and takes the condition
+ *       of an instruction in an IT block from it (ArmITCondition).
+ *   uint32 ArmIPSR(const TargetCoreType *core)
+ *   bool ArmHaveDSPExt(const TargetCoreType *core)
+ *       The M profile's IPSR (the exception number, 0 in Thread mode) and
+ *       whether the DSP extension is implemented (MRS, MSR).
+ *
  * The operations return STD_E_OK, or an error for a fault the profile
  * raises (a memory fault, an invalid state); the pseudo-code then stops and
  * returns it. The pseudo-code returns STD_E_INVALID for an UNPREDICTABLE case

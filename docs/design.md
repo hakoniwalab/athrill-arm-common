@@ -64,7 +64,7 @@ In C (`include/arm_common/arm_profile.h` lists the signatures): `ArmR`,
 `ArmRWrite`, `ArmPC`, `ArmCurrentInstrSet`, `ArmAPSR`, `ArmAPSRWrite`,
 `ArmBranchWritePC`, `ArmBXWritePC`, `ArmBLXWritePC`, `ArmLoadWritePC`,
 `ArmALUWritePC`, `ArmIntegerZeroDivideTrappingEnabled`,
-`ArmGenerateIntegerZeroDivide`, `ArmMemU_R/W` and
+`ArmGenerateIntegerZeroDivide`, `ArmITStateWrite`, `ArmIPSR`, `ArmHaveDSPExt`, `ArmMemU_R/W` and
 `ArmMemA_R/W`, defined by the target's `arm_target_profile.h`. A write to PC
 sets the address of the next instruction; without one the target goes on to
 the following instruction. An operation returns an error for a fault, and the
@@ -171,7 +171,15 @@ asks the profile (`ArmIntegerZeroDivideTrappingEnabled`,
 `ArmGenerateIntegerZeroDivide`: the M profile's CCR.DIV_0_TRP). ADR is in
 `arm_pseudo_arith.h`, MOVT in `arm_pseudo_move.h`. Their unit tests
 (`test/test_pseudo_misc.c`) take the expected values from an independent
-model in Python (`test/model_misc.py`). The profile
+model in Python (`test/model_misc.py`).
+
+IT writes the IT state through the profile (`ArmITStateWrite`); the IT state
+helpers (`ArmInITBlock`, `ArmLastInITBlock`, `ArmITCondition`, `ArmITAdvance`
+in `arm_helpers.h`) let the target take an instruction's condition from it
+and advance it after every instruction but IT. `arm_pseudo_system.h` also
+has the M profile's MRS and MSR for the program status registers
+(SYSm<7:3> == '00000'); the other special registers belong to the exception
+model, which is not in the common code yet. The profile
 adds MemU_unpriv[] and the exclusive monitors for them. LDM loads every
 word before it writes a register, so a fault in the middle of the list
 leaves the registers as they were.

@@ -554,6 +554,17 @@ static Std_ReturnType blx(TargetCoreType *core, uint32 cond, uint32 m)
 	return arm_pseudo_blx_reg(core, &in, &out);
 }
 
+static Std_ReturnType bx(TargetCoreType *core, uint32 cond, uint32 m)
+{
+	arm_blx_reg_input_type in;
+	arm_b_output_type out;
+
+	in.instrName = "BX";
+	in.cond = cond;
+	ARM_SET_REG(core, &in, Rm, m);
+	return arm_pseudo_bx(core, &in, &out);
+}
+
 static Std_ReturnType cb(TargetCoreType *core, bool nonzero, uint32 n, uint32 imm32)
 {
 	arm_cb_input_type in;
@@ -605,6 +616,18 @@ static void test_branch_link(void)
 	core.apsr = ARM_APSR_Z;
 	core.r[14] = 0x5555U;
 	CHECK(blx(&core, 0x1U, 3U) == STD_E_OK && core.r[14] == 0x5555U && core.next_pc == PC0 + 4U, "BLXNE skipped");
+
+	/* BX r3: BXWritePC(R[m]); LR unchanged. */
+	init(&core, TestProfile_M);
+	core.r[3] = 0x08001235U;
+	core.r[14] = 0x5555U;
+	CHECK(bx(&core, ARM_COND_AL, 3U) == STD_E_OK && core.next_pc == 0x08001234U && core.r[14] == 0x5555U, "BX");
+	init(&core, TestProfile_M);
+	core.r[3] = 0x08001234U;
+	CHECK(bx(&core, ARM_COND_AL, 3U) == STD_E_EXEC, "BX INVSTATE");
+	init(&core, TestProfile_M);
+	core.apsr = ARM_APSR_Z;
+	CHECK(bx(&core, 0x1U, 3U) == STD_E_OK && core.next_pc == PC0 + 2U, "BXNE skipped");
 
 	/* CBZ / CBNZ: target = address + 4 + imm32 when R[n] is (not) zero. */
 	init(&core, TestProfile_M);

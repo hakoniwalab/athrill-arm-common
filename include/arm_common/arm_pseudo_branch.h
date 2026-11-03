@@ -123,7 +123,7 @@ static inline Std_ReturnType arm_pseudo_bl(TargetCoreType *core, const arm_b_inp
 }
 
 /*
- * BLX (register)
+ * BX, BLX (register)
  */
 typedef struct {
 	const char *instrName;
@@ -165,6 +165,22 @@ static inline Std_ReturnType arm_pseudo_blx_reg(TargetCoreType *core, const arm_
 		ArmRWrite(core, ARM_REG_LR, next_instr_addr | 1U);
 	}
 	return ArmBLXWritePC(core, out->target);
+}
+
+/*
+ * if ConditionPassed() then
+ *     EncodingSpecificOperations();
+ *     BXWritePC(R[m]);
+ */
+static inline Std_ReturnType arm_pseudo_bx(TargetCoreType *core, const arm_blx_reg_input_type *in, arm_b_output_type *out)
+{
+	out->target = 0U;
+	out->passed = ConditionHolds(in->cond, ArmAPSR(core));
+	if (!out->passed) {
+		return STD_E_OK;
+	}
+	out->target = in->Rm.regData;
+	return ArmBXWritePC(core, out->target);
 }
 
 /*
