@@ -68,6 +68,7 @@ typedef struct {
 	bool epsr_t;		/* EPSR.T: 0 makes the next instruction an INVSTATE UsageFault */
 	bool event;		/* the event register (WFE, SEV) */
 	bool lockup;
+	bool pending_any;	/* a summary: set whenever an exception may have become pending */
 	/* exceptions */
 	uint8 active[ARM_M_EXC_NUM];
 	uint8 pending[ARM_M_EXC_NUM];

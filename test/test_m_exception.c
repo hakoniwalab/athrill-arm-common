@@ -693,6 +693,23 @@ static void test_edges(void)
 	CHECK(ArmMScsRead(m, &st, &cfg, 0xE00U, 4U) == 0U, "reserved: WI");
 }
 
+/* The summary: set by a pend, cleared when nothing is pending, kept while one is masked. */
+static void test_pending_summary(void)
+{
+	TargetCoreType core;
+	ArmMStateType *m = &core.m;
+
+	init(&core, FALSE, MEM(0x100U));
+	CHECK(!m->pending_any && ArmMPendingToTakeFast(m) == 0U, "nothing pending");
+	m->enabled[16] = 1U;
+	ArmMSetPending(m, 16U);
+	CHECK(m->pending_any && ArmMPendingToTakeFast(m) == 16U, "pended");
+	m->primask = 1U;
+	CHECK(ArmMPendingToTakeFast(m) == 0U && m->pending_any, "masked: kept");
+	m->pending[16] = 0U;
+	CHECK(ArmMPendingToTakeFast(m) == 0U && !m->pending_any, "none: cleared");
+}
+
 int main(void)
 {
 	test_priorities();
@@ -704,6 +721,7 @@ int main(void)
 	test_special_registers();
 	test_scs();
 	test_edges();
+	test_pending_summary();
 	printf("%d checks, %d failures\n", checks, failures);
 	return failures == 0 ? 0 : 1;
 }
