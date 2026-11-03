@@ -46,7 +46,7 @@ static inline void ArmMReset(ArmMStateType *m, uint32 num_irq, uint32 priority_b
 	m->epsr_t = TRUE;
 	m->event = FALSE;
 	m->lockup = FALSE;
-	m->pending_any = FALSE;
+	m->pending_check = FALSE;
 	for (i = 0U; i < ARM_M_EXC_NUM; i++) {
 		m->active[i] = 0U;
 		m->pending[i] = 0U;
@@ -262,30 +262,25 @@ static inline uint32 ArmMPendingToTake(const ArmMStateType *m)
 static inline void ArmMSetPending(ArmMStateType *m, uint32 n)
 {
 	m->pending[n] = 1U;
-	m->pending_any = TRUE;
+	m->pending_check = TRUE;
 }
 
 /*
  * ArmMPendingToTake for a target that asks before every instruction: only
- * while the summary says something may be pending; the summary is cleared
- * once nothing is.
+ * after something that decides it changed (pending_check). An exception left
+ * pending but not taken (masked, disabled, of too low a priority) is not
+ * looked at again until then.
  */
 static inline uint32 ArmMPendingToTakeFast(ArmMStateType *m)
 {
 	uint32 n;
-	uint32 i;
 
-	if (!m->pending_any) {
+	if (!m->pending_check) {
 		return 0U;
 	}
 	n = ArmMPendingToTake(m);
 	if (n == 0U) {
-		for (i = 2U; i < (ARM_M_EXC_IRQ0 + m->num_irq); i++) {
-			if (m->pending[i] != 0U) {
-				return 0U;
-			}
-		}
-		m->pending_any = FALSE;
+		m->pending_check = FALSE;
 	}
 	return n;
 }
@@ -618,6 +613,7 @@ static inline void ArmMDeActivate(ArmMStateType *m, uint32 n)
 	if (m->ipsr != ARM_M_EXC_NMI) {
 		m->faultmask = 0U;
 	}
+	m->pending_check = TRUE;	/* the execution priority falls */
 }
 
 static inline uint32 ArmMActiveCount(const ArmMStateType *m)

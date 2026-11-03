@@ -699,15 +699,32 @@ static void test_pending_summary(void)
 	TargetCoreType core;
 	ArmMStateType *m = &core.m;
 
+	arm_msr_input_type msr;
+	arm_dp_output_type out;
+
 	init(&core, FALSE, MEM(0x100U));
-	CHECK(!m->pending_any && ArmMPendingToTakeFast(m) == 0U, "nothing pending");
+	CHECK(!m->pending_check && ArmMPendingToTakeFast(m) == 0U, "nothing pending");
 	m->enabled[16] = 1U;
 	ArmMSetPending(m, 16U);
-	CHECK(m->pending_any && ArmMPendingToTakeFast(m) == 16U, "pended");
+	CHECK(m->pending_check && ArmMPendingToTakeFast(m) == 16U, "pended");
 	m->primask = 1U;
-	CHECK(ArmMPendingToTakeFast(m) == 0U && m->pending_any, "masked: kept");
-	m->pending[16] = 0U;
-	CHECK(ArmMPendingToTakeFast(m) == 0U && !m->pending_any, "none: cleared");
+	CHECK(ArmMPendingToTakeFast(m) == 0U && !m->pending_check, "masked: not checked again");
+	CHECK(ArmMPendingToTakeFast(m) == 0U, "masked: still none");
+	/* MSR PRIMASK, r0 = 0 unmasks: checked again */
+	memset(&msr, 0, sizeof(msr));
+	msr.cond = ARM_COND_AL;
+	msr.SYSm = 16U;
+	msr.Rn.regData = 0U;
+	(void)arm_pseudo_msr(&core, &msr, &out);
+	CHECK(m->pending_check && ArmMPendingToTakeFast(m) == 16U, "MSR PRIMASK: taken");
+	/* the end of a handler that masked it by priority */
+	m->active[16] = 1U;
+	m->priority[16] = 0x80U;
+	m->ipsr = 16U;
+	CHECK(ArmMPendingToTakeFast(m) == 0U && !m->pending_check, "active itself: none");
+	ArmMDeActivate(m, 16U);
+	m->ipsr = 0U;
+	CHECK(m->pending_check && ArmMPendingToTakeFast(m) == 16U, "after DeActivate: taken");
 }
 
 int main(void)

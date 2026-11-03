@@ -418,7 +418,7 @@ static inline void ArmMScsWrite(TargetCoreType *core, ArmMStateType *m, ArmMSysT
 {
 	ArmMScsWriteWord(core, m, st, cfg, offset & ~3U, value << (8U * (offset & 3U)), ArmMScsMask(offset, size));
 	/* a write may pend an exception, or enable or reprioritise a pending one */
-	m->pending_any = TRUE;
+	m->pending_check = TRUE;
 }
 
 /* The counter reaching 0: COUNTFLAG, and with TICKINT SysTick pending. */

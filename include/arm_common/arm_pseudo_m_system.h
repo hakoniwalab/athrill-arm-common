@@ -122,6 +122,7 @@ static inline Std_ReturnType arm_pseudo_msr(TargetCoreType *core, const arm_msr_
 		return STD_E_OK;
 	}
 	basepri = value & ArmMPriorityMask(m);
+	m->pending_check = TRUE;	/* PRIMASK, BASEPRI, FAULTMASK: the execution priority may change */
 	switch (in->SYSm) {
 	case 8U:
 		ArmMSPMainWrite(core, value & ~3U);
@@ -185,6 +186,7 @@ static inline Std_ReturnType arm_pseudo_cps(TargetCoreType *core, const arm_cps_
 	if (!ArmMPrivileged(m)) {
 		return STD_E_OK;
 	}
+	m->pending_check = TRUE;
 	if (in->enable) {
 		if (in->affectPRI) {
 			m->primask = 0U;
