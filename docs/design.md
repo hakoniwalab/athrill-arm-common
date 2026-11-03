@@ -250,3 +250,28 @@ are S or D registers is its `dp_operation` (or `single_regs`).
 `arm_pseudo_fp_move.h` has the moves (VMOV in all its forms, VABS, VNEG,
 VSEL, VMRS, VMSR), `arm_pseudo_fp_ls.h` the loads and stores (VLDR, VSTR,
 VLDM, VSTM).
+
+`arm_fp.h` has the floating-point functions of the pseudo-code: FPUnpack,
+FPRound, the NaN handling (FPProcessNaN, FPProcessNaNs, FPProcessNaNs3),
+FPAdd, FPSub, FPMul, FPDiv, FPSqrt, FPMulAdd, FPCompare, FPConvert,
+FPToFixed, FixedToFP, FPRoundInt, FPMax/FPMin and FPMaxNum/FPMinNum, for
+16-, 32- and 64-bit values. They do not use the host's floating point: a
+real value is an integer significand of up to 128 bits times a power of
+two, and where an exact result needs more bits (an addition of far apart
+values, a quotient, a square root) the bits that do not fit are folded into
+the lowest bit, well below the rounding position, so that FPRound rounds
+the exact value once, as the pseudo-code does. The result, the rounding
+modes, flush-to-zero, default NaN, the alternative half-precision format
+and the cumulative exception bits are then the same on every host. The
+instructions are in `arm_pseudo_fp_arith.h` (VADD ... VFNMS, VSQRT, VCMP,
+VCMPE) and `arm_pseudo_fp_convert.h` (VCVT in its forms, VCVTB/VCVTT,
+VCVTR, VCVTA/N/P/M, VRINT*, VMAXNM, VMINNM).
+
+`test/model_fp.py` is an independent model of the same pseudo-code in exact
+rational arithmetic (Python's fractions); `test/test_fp.c` checks every
+function against its cases (results and FPSCR), with directed cases for
+exact ties, a denormal rounding up to the smallest normal, FMA's quiet NaN
+with infinity times zero, and square roots whose remainder decides the
+rounding. The branches arm_fp.h's tests do not reach are combinations the
+pseudo-code's chains of conditions rule out (an infinity of the other sign
+after its own case has returned).

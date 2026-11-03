@@ -76,8 +76,26 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME pseudo-fp-move COMMAND test_pseudo_fp_move)
 
+  # The floating-point functions (arm_fp.h), against test/model_fp.py.
+  add_executable(test_fp test/test_fp.c)
+  target_link_libraries(test_fp PRIVATE athrill_arm_common)
+  target_include_directories(test_fp PRIVATE test/profile test)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_fp PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME fp COMMAND test_fp)
+
+  # The floating-point instructions around arm_fp.h.
+  add_executable(test_pseudo_fp_instr test/test_pseudo_fp_instr.c)
+  target_link_libraries(test_pseudo_fp_instr PRIVATE athrill_arm_common)
+  target_include_directories(test_pseudo_fp_instr PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_pseudo_fp_instr PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME pseudo-fp-instr COMMAND test_pseudo_fp_instr)
+
   if(ATHRILL_ARM_COMMON_COVERAGE)
-    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move)
+    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move test_fp test_pseudo_fp_instr)
       target_compile_options(${t} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0)
       target_link_options(${t} PRIVATE -fprofile-instr-generate)
     endforeach()
