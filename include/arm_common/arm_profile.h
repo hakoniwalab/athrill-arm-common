@@ -57,6 +57,15 @@
  *   bool ArmHaveDSPExt(const TargetCoreType *core)
  *       The M profile's IPSR (the exception number, 0 in Thread mode) and
  *       whether the DSP extension is implemented (MRS, MSR).
+ *   uint32 ArmS(const TargetCoreType *core, uint32 n)
+ *   void ArmSWrite(TargetCoreType *core, uint32 n, uint32 value)
+ *   uint64 ArmD(const TargetCoreType *core, uint32 n)
+ *   void ArmDWrite(TargetCoreType *core, uint32 n, uint64 value)
+ *       The floating-point registers S0-S31 and D0-D15 (D0-D31 with 32
+ *       double registers); with 16 of them, D[n] is S[2n+1]:S[2n].
+ *   uint32 ArmFPSCR(const TargetCoreType *core)
+ *   void ArmFPSCRWrite(TargetCoreType *core, uint32 value)
+ *       FPSCR; the write keeps only the bits the profile implements.
  *
  * The operations return STD_E_OK, or an error for a fault the profile
  * raises (a memory fault, an invalid state); the pseudo-code then stops and

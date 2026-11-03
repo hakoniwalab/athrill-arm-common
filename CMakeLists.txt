@@ -67,8 +67,17 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME pseudo-dsp COMMAND test_pseudo_dsp)
 
+  # Floating-point moves, loads and stores.
+  add_executable(test_pseudo_fp_move test/test_pseudo_fp_move.c)
+  target_link_libraries(test_pseudo_fp_move PRIVATE athrill_arm_common)
+  target_include_directories(test_pseudo_fp_move PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_pseudo_fp_move PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME pseudo-fp-move COMMAND test_pseudo_fp_move)
+
   if(ATHRILL_ARM_COMMON_COVERAGE)
-    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp)
+    foreach(t test_helpers test_pseudo test_pseudo_ls test_pseudo_misc test_pseudo_system test_pseudo_dsp test_pseudo_fp_move)
       target_compile_options(${t} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0)
       target_link_options(${t} PRIVATE -fprofile-instr-generate)
     endforeach()

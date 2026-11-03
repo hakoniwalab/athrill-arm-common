@@ -31,6 +31,8 @@ typedef struct {
 	uint32 itstate;		/* ITSTATE.IT<7:0> */
 	uint32 ipsr;		/* IPSR (M profile) */
 	bool no_dsp;		/* without the DSP extension */
+	uint32 s[32];		/* S0-S31; D[n] = S[2n+1]:S[2n] (16 double registers) */
+	uint32 fpscr;
 	uint32 unpriv_accesses;	/* MemU_unpriv[] accesses, to check they are used */
 	uint8 mem[TEST_MEM_SIZE];
 } TargetCoreType;
@@ -223,6 +225,40 @@ static inline uint32 ArmIPSR(const TargetCoreType *core)
 static inline bool ArmHaveDSPExt(const TargetCoreType *core)
 {
 	return !core->no_dsp;
+}
+
+static inline uint32 ArmS(const TargetCoreType *core, uint32 n)
+{
+	return core->s[n];
+}
+
+static inline void ArmSWrite(TargetCoreType *core, uint32 n, uint32 value)
+{
+	core->s[n] = value;
+}
+
+static inline uint64 ArmD(const TargetCoreType *core, uint32 n)
+{
+	return ((uint64)core->s[2U * n + 1U] << 32) | core->s[2U * n];
+}
+
+static inline void ArmDWrite(TargetCoreType *core, uint32 n, uint64 value)
+{
+	core->s[2U * n] = (uint32)value;
+	core->s[2U * n + 1U] = (uint32)(value >> 32);
+}
+
+/* FPSCR of FPv5: N Z C V, AHP, DN, FZ, RMode and the cumulative exception bits. */
+#define TEST_FPSCR_MASK	0xF7C0009FU
+
+static inline uint32 ArmFPSCR(const TargetCoreType *core)
+{
+	return core->fpscr;
+}
+
+static inline void ArmFPSCRWrite(TargetCoreType *core, uint32 value)
+{
+	core->fpscr = value & TEST_FPSCR_MASK;
 }
 
 static inline void test_core_init(TargetCoreType *core, TestProfileType profile, uint32 pc)
