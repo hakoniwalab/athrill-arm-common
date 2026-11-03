@@ -10,6 +10,17 @@ combines these with its decoders, the glue from each encoding to the
 pseudo-code, its profile (A or M) and its SoC's devices. See
 [docs/design.md](docs/design.md).
 
+## Build and test
+
+The Athrill core (`toppers/athrill`) is expected next to this checkout as
+`../athrill`, for its `std_types.h`.
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+(cd build && ctest --output-on-failure)
+```
+
 ## Licence
 
 MIT (see `LICENSE`). Code taken from

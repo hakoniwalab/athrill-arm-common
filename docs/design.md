@@ -91,6 +91,34 @@ as it finds the Athrill core, and includes `arm_profile.h` after defining its
 - Instruction tests check results against values worked out from Arm's
   pseudo-code, not against the implementation's own output.
 
+## Helpers
+
+`arm_helpers.h` has the pseudo-code's helpers on 32-bit values: the shifts
+(LSL_C ... RRX, Shift_C, DecodeImmShift, DecodeRegShift), the modified
+immediates (ARMExpandImm_C, ThumbExpandImm_C), AddWithCarry, SignedSatQ and
+UnsignedSatQ, the bit functions (SignExtend, ZeroExtend, BitCount,
+LowestSetBit, HighestSetBit, CountLeadingZeroBits, Align), ConditionHolds and
+the APSR flag update. They read no processor state: the operands and the APSR
+are passed in, so both profiles use them as they are. The width N of the
+pseudo-code is always 32 and is not a parameter.
+
+They were rewritten from the pseudo-code rather than copied from
+athrill-target-ARMv7-A, whose versions differ from the pseudo-code in some
+cases (found while writing the tests below):
+
+| Helper | athrill-target-ARMv7-A | Pseudo-code |
+|---|---|---|
+| LSL_C carry | x<31> | x<32-shift> |
+| LSR_C, ASR_C carry | x<0> | x<shift-1> |
+| ROR_C by 32 or more | asserts shift < 32 | any amount (register-shifted forms give up to 255) |
+| CountLeadingZeroBits | trailing zeros | leading zeros |
+| OpSignExtend | sets one bit | sign-extends |
+
+`test/test_helpers.c` checks them against a second implementation of the
+pseudo-code written on bitstrings (`x : Zeros(shift)`, `extended_x<shift-1>`)
+for every shift amount from 1 to 255, and against values worked out by hand
+(conditions for all NZCV values, expanded immediates, saturation, flags).
+
 ## First steps
 
 1. Helpers and types from athrill-target-ARMv7-A, made independent of the
