@@ -160,6 +160,9 @@ static void test_shifts(void)
 			CHECK(Shift_C(x, SRType_LSL, 0U, TRUE, &carry) == x && carry == TRUE, "Shift_C amount 0");
 			CHECK(Shift_C(x, SRType_ASR, 0U, FALSE, &carry) == x && carry == FALSE, "Shift_C amount 0");
 			CHECK(LSL(x, 0U) == x && LSR(x, 0U) == x && ASR(x, 0U) == x && ROR(x, 0U) == x, "shift by 0");
+			CHECK(LSL(x, 5U) == LSL_C(x, 5U, NULL) && LSR(x, 5U) == LSR_C(x, 5U, NULL) &&
+			      ASR(x, 5U) == ASR_C(x, 5U, NULL) && ROR(x, 5U) == ROR_C(x, 5U, NULL) &&
+			      RRX(x, TRUE) == RRX_C(x, TRUE, NULL), "shift without carry");
 		}
 		/* RRX: carry_in : x<31:1>, carry_out = x<0>. */
 		{

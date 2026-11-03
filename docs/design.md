@@ -132,6 +132,27 @@ pseudo-code written on bitstrings (`x : Zeros(shift)`, `extended_x<shift-1>`)
 for every shift amount from 1 to 255, and against values worked out by hand
 (conditions for all NZCV values, expanded immediates, saturation, flags).
 
+## Data processing
+
+The data-processing instructions share `arm_pseudo_dp.h`: an input structure
+per operand form (immediate with the expansion's carry, register with a
+shift, register-shifted register), one output structure, and the steps every
+one of them has (`ArmDataProcessingBegin`: the condition;
+`ArmDataProcessingWrite`: R[d] or ALUWritePC, then N, Z, C, V when setflags;
+`ArmDataProcessingFlags`: the flags of a compare or test). An instruction is
+then its own pseudo-code line: `AddWithCarry(R[n], NOT(imm32), '1')` for SUB,
+`R[n] AND shifted` with the shifter's carry for AND. The representatives, one
+per kind, are in `arm_pseudo_arith.h` (ADD, SUB, CMP), `arm_pseudo_logic.h`
+(AND) and `arm_pseudo_move.h` (MOV immediate and register, and the shifts as
+MOV); the other instructions follow the same pattern.
+
+## Coverage
+
+`tools/coverage.sh` measures the headers' code coverage by the unit tests
+(clang source-based coverage: regions, functions, lines, branches). The
+pseudo-code headers are kept at 100%; every function has a test with a
+failing condition, and with and without setflags.
+
 ## Decoder tools
 
 `tools/` generates a target's T32 decoders from Arm's machine-readable

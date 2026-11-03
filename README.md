@@ -19,7 +19,11 @@ The Athrill core (`toppers/athrill`) is expected next to this checkout as
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 (cd build && ctest --output-on-failure)
+tools/coverage.sh
 ```
+
+`tools/coverage.sh` (clang) reports the code coverage of the headers by the
+tests.
 
 ## Licence
 

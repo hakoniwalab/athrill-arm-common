@@ -10,6 +10,9 @@ target_include_directories(athrill_arm_common INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   "${ATHRILL_SOURCE_DIR}/src/inc")
 
+# Source-based code coverage of the tests (clang), see tools/coverage.sh.
+option(ATHRILL_ARM_COMMON_COVERAGE "Build the tests with code coverage" OFF)
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(test_helpers test/test_helpers.c)
@@ -27,4 +30,11 @@ if(BUILD_TESTING)
     target_compile_options(test_pseudo PRIVATE -Wall -Wextra -Werror)
   endif()
   add_test(NAME pseudo COMMAND test_pseudo)
+
+  if(ATHRILL_ARM_COMMON_COVERAGE)
+    foreach(t test_helpers test_pseudo)
+      target_compile_options(${t} PRIVATE -fprofile-instr-generate -fcoverage-mapping -O0)
+      target_link_options(${t} PRIVATE -fprofile-instr-generate)
+    endforeach()
+  endif()
 endif()
