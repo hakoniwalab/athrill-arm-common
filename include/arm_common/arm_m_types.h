@@ -2,6 +2,12 @@
  * The M profile's exception model: its exception numbers, register bits
  * and state (ArmMStateType). A target's arm_target_profile.h includes this
  * to hold the state in its core; the model is in arm_m_exception.h.
+ *
+ * These structures are part of the target's core, which Athrill's C and
+ * C++ files share: their flags are std_bool (int in both languages), not
+ * bool, which Athrill's std_types.h makes an int in C while C++'s bool is
+ * one byte; with bool the two languages would lay the core out
+ * differently.
  */
 #ifndef ARM_COMMON_ARM_M_TYPES_H
 #define ARM_COMMON_ARM_M_TYPES_H
@@ -57,21 +63,21 @@ typedef struct {
 	/* configuration of the implementation */
 	uint32 num_irq;		/* external interrupts */
 	uint32 priority_bits;	/* implemented priority bits (the top ones of 8) */
-	bool have_fp;		/* the FP extension */
+	std_bool have_fp;		/* the FP extension */
 	/* execution state */
-	bool handler_mode;	/* CurrentMode == Mode_Handler */
+	std_bool handler_mode;	/* CurrentMode == Mode_Handler */
 	uint32 sp_other;	/* the stack pointer that is not R[13] */
 	uint32 control;
 	uint32 primask;
 	uint32 faultmask;
 	uint32 basepri;
 	uint32 ipsr;		/* IPSR<8:0>: the exception number */
-	bool epsr_t;		/* EPSR.T: 0 makes the next instruction an INVSTATE UsageFault */
-	bool event;		/* the event register (WFE, SEV) */
-	bool lockup;
-	bool pending_check;	/* the exception to take may have changed: set by a change of pending,
+	std_bool epsr_t;		/* EPSR.T: 0 makes the next instruction an INVSTATE UsageFault */
+	std_bool event;		/* the event register (WFE, SEV) */
+	std_bool lockup;
+	std_bool pending_check;	/* the exception to take may have changed: set by a change of pending,
 				 * enabled, priority or active state; cleared once none is to take */
-	bool priority_check;	/* only the execution priority may have changed (MSR, CPS): the
+	std_bool priority_check;	/* only the execution priority may have changed (MSR, CPS): the
 				 * pending exception of the last check is compared with it */
 	sint32 pending_group;	/* the group priority of the enabled pending exception of the highest
 				 * priority at the last check; ARM_M_NO_PENDING: none */
@@ -105,7 +111,7 @@ typedef struct {
 typedef struct {
 	uint32 cpuid;
 	uint32 ccr_writable;
-	bool reset_requested;	/* AIRCR.SYSRESETREQ written */
+	std_bool reset_requested;	/* AIRCR.SYSRESETREQ written */
 } ArmMScsConfigType;
 
 #endif /* ARM_COMMON_ARM_M_TYPES_H */
