@@ -81,6 +81,10 @@
  *   uint32 ArmFPSCR(const TargetCoreType *core)
  *   void ArmFPSCRWrite(TargetCoreType *core, uint32 value)
  *       FPSCR; the write keeps only the bits the profile implements.
+ *   bool ArmFPHostFast(const TargetCoreType *core)
+ *       Whether the floating-point arithmetic may use the host's FPU where
+ *       it gives the same result (arm_fp_host.h); FALSE: the pseudo-code
+ *       only (strict).
  *
  * The operations return STD_E_OK, or an error for a fault the profile
  * raises (a memory fault, an invalid state); the pseudo-code then stops and

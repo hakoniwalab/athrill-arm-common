@@ -36,6 +36,7 @@ typedef struct {
 	ArmMStateType m;	/* the M profile's exception model */
 	uint32 supervisor_calls;	/* CallSupervisor() */
 	uint32 fp_checks;		/* ExecuteFPCheck() */
+	bool fp_host_fast;		/* ArmFPHostFast() */
 	Std_ReturnType fp_check_error;
 	uint32 fpscr;
 	uint32 unpriv_accesses;	/* MemU_unpriv[] accesses, to check they are used */
@@ -284,6 +285,11 @@ static inline uint32 ArmFPSCR(const TargetCoreType *core)
 static inline void ArmFPSCRWrite(TargetCoreType *core, uint32 value)
 {
 	core->fpscr = value & TEST_FPSCR_MASK;
+}
+
+static inline bool ArmFPHostFast(const TargetCoreType *core)
+{
+	return core->fp_host_fast;
 }
 
 /* ExecuteFPCheck(): counted; fp_check_error makes it fail. */

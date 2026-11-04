@@ -94,6 +94,15 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME pseudo-fp-instr COMMAND test_pseudo_fp_instr)
 
+  # The host fast path of the floating-point arithmetic against the pseudo-code.
+  add_executable(test_fp_host test/test_fp_host.c)
+  target_link_libraries(test_fp_host PRIVATE athrill_arm_common m)
+  target_include_directories(test_fp_host PRIVATE test/profile)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(test_fp_host PRIVATE -Wall -Wextra -Werror)
+  endif()
+  add_test(NAME fp-host COMMAND test_fp_host)
+
   # The M profile's exception model, its system instructions and its SCS.
   add_executable(test_m_exception test/test_m_exception.c)
   target_link_libraries(test_m_exception PRIVATE athrill_arm_common)

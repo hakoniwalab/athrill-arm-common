@@ -4,7 +4,9 @@
  * VFNMS, VCMP, VCMPE.
  *
  * Each reads FPSCR, computes with arm_fp.h (which sets the cumulative
- * exception bits) and writes FPSCR back.
+ * exception bits) and writes FPSCR back. When the profile asks for it
+ * (ArmFPHostFast), the arithmetic is first tried on the host's FPU
+ * (arm_fp_host.h), which gives the same bits where it accepts.
  */
 #ifndef ARM_COMMON_ARM_PSEUDO_FP_ARITH_H
 #define ARM_COMMON_ARM_PSEUDO_FP_ARITH_H
@@ -27,6 +29,8 @@ typedef enum {
 	ArmFPOp_VFNMA,
 	ArmFPOp_VFNMS,
 } ArmFPOp;
+
+#include "arm_fp_host.h"
 
 /*
  * The operations, on N-bit values d (the destination's old value), n, m:
@@ -87,14 +91,21 @@ static inline Std_ReturnType ArmFPArith(TargetCoreType *core, const arm_fp_input
 	uint32 N = in->dp_operation ? 64U : 32U;
 	uint32 fpscr;
 	uint64 result;
+	uint64 d;
+	uint64 n;
+	uint64 m;
 
 	out->result = 0U;
 	if (!ArmFPBegin(core, in->cond, out)) {
 		return out->check;
 	}
 	fpscr = ArmFPSCR(core);
-	result = ArmFPOperation(op, ArmFPRead(core, in->dp_operation, in->d), ArmFPRead(core, in->dp_operation, in->n),
-		ArmFPRead(core, in->dp_operation, in->m), N, &fpscr);
+	d = ArmFPRead(core, in->dp_operation, in->d);
+	n = ArmFPRead(core, in->dp_operation, in->n);
+	m = ArmFPRead(core, in->dp_operation, in->m);
+	if (!ArmFPHostFast(core) || !ArmFPHostOperation((uint32)op, d, n, m, N, &fpscr, &result)) {
+		result = ArmFPOperation(op, d, n, m, N, &fpscr);
+	}
 	ArmFPSCRWrite(core, fpscr);
 	ArmFPWrite(core, in->dp_operation, in->d, result, out);
 	return STD_E_OK;
@@ -174,13 +185,17 @@ static inline Std_ReturnType arm_pseudo_vsqrt(TargetCoreType *core, const arm_fp
 	uint32 N = in->dp_operation ? 64U : 32U;
 	uint32 fpscr;
 	uint64 result;
+	uint64 m;
 
 	out->result = 0U;
 	if (!ArmFPBegin(core, in->cond, out)) {
 		return out->check;
 	}
 	fpscr = ArmFPSCR(core);
-	result = FPSqrt(ArmFPRead(core, in->dp_operation, in->m), N, &fpscr);
+	m = ArmFPRead(core, in->dp_operation, in->m);
+	if (!ArmFPHostFast(core) || !ArmFPHostOperation(ARM_FP_HOST_SQRT, 0U, 0U, m, N, &fpscr, &result)) {
+		result = FPSqrt(m, N, &fpscr);
+	}
 	ArmFPSCRWrite(core, fpscr);
 	ArmFPWrite(core, in->dp_operation, in->d, result, out);
 	return STD_E_OK;
