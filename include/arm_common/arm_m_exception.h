@@ -47,6 +47,8 @@ static inline void ArmMReset(ArmMStateType *m, uint32 num_irq, uint32 priority_b
 	m->event = FALSE;
 	m->lockup = FALSE;
 	m->pending_check = FALSE;
+	m->priority_check = FALSE;
+	m->pending_group = ARM_M_NO_PENDING;
 	for (i = 0U; i < ARM_M_EXC_NUM; i++) {
 		m->active[i] = 0U;
 		m->pending[i] = 0U;
@@ -215,7 +217,8 @@ static inline sint32 ArmMExecutionPriority(const ArmMStateType *m)
 	sint32 boostedpri = 256;
 	uint32 i;
 
-	for (i = 2U; i < ARM_M_EXC_NUM; i++) {
+	/* exceptions above the implemented interrupts are never active */
+	for (i = 2U; i < (ARM_M_EXC_IRQ0 + m->num_irq); i++) {
 		if ((m->active[i] != 0U) && (ArmMExceptionPriority(m, i) < highestpri)) {
 			highestpri = ArmMGroupPriority(m, ArmMExceptionPriority(m, i));
 		}
@@ -237,6 +240,26 @@ static inline sint32 ArmMExecutionPriority(const ArmMStateType *m)
  * of the highest priority (lowest value; between equal priorities the lowest
  * number), if its group priority is higher than the execution priority.
  */
+/* The enabled pending exception of the highest priority, or 0, and its group priority. */
+static inline uint32 ArmMPendingBest(const ArmMStateType *m, sint32 *group)
+{
+	uint32 best = 0U;
+	sint32 best_priority = 512;
+	uint32 i;
+
+	for (i = 2U; i < (ARM_M_EXC_IRQ0 + m->num_irq); i++) {
+		bool enabled = (i < ARM_M_EXC_IRQ0) ? ((i > ARM_M_EXC_USAGEFAULT) || (i < ARM_M_EXC_MEMMANAGE) || (m->enabled[i] != 0U))
+			: (m->enabled[i] != 0U);
+
+		if ((m->pending[i] != 0U) && enabled && (ArmMExceptionPriority(m, i) < best_priority)) {
+			best = i;
+			best_priority = ArmMExceptionPriority(m, i);
+		}
+	}
+	*group = (best != 0U) ? ArmMGroupPriority(m, best_priority) : ARM_M_NO_PENDING;
+	return best;
+}
+
 static inline uint32 ArmMPendingToTake(const ArmMStateType *m)
 {
 	uint32 best = 0U;
@@ -275,14 +298,24 @@ static inline uint32 ArmMPendingToTakeFast(ArmMStateType *m)
 {
 	uint32 n;
 
+	if (m->priority_check && !m->pending_check) {
+		/* only the execution priority changed: the pending exception of the last check */
+		m->priority_check = FALSE;
+		if ((m->pending_group == ARM_M_NO_PENDING) || (m->pending_group >= ArmMExecutionPriority(m))) {
+			return 0U;
+		}
+		m->pending_check = TRUE;
+	}
 	if (!m->pending_check) {
 		return 0U;
 	}
-	n = ArmMPendingToTake(m);
-	if (n == 0U) {
-		m->pending_check = FALSE;
+	m->priority_check = FALSE;
+	n = ArmMPendingBest(m, &m->pending_group);
+	if ((n != 0U) && (m->pending_group < ArmMExecutionPriority(m))) {
+		return n;
 	}
-	return n;
+	m->pending_check = FALSE;
+	return 0U;
 }
 
 /*
@@ -559,6 +592,7 @@ static inline Std_ReturnType ArmMExceptionTaken(TargetCoreType *core, uint32 n)
 	}
 	m->active[n] = 1U;
 	m->pending[n] = 0U;
+	m->pending_check = TRUE;	/* the pending exception of the last check is taken */
 	ArmClearExclusiveLocal(core);
 	m->event = TRUE;
 	return STD_E_OK;

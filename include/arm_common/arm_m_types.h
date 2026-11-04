@@ -21,6 +21,7 @@
 #define ARM_M_EXC_SYSTICK	15U
 #define ARM_M_EXC_IRQ0		16U
 #define ARM_M_EXC_NUM		512U	/* the architecture's limit (16 + 496 interrupts) */
+#define ARM_M_NO_PENDING	512	/* pending_group: no pending exception (below any priority) */
 
 /* CONTROL */
 #define ARM_M_CONTROL_NPRIV	(1U << 0)
@@ -69,7 +70,11 @@ typedef struct {
 	bool event;		/* the event register (WFE, SEV) */
 	bool lockup;
 	bool pending_check;	/* the exception to take may have changed: set by a change of pending,
-				 * enabled, priority, mask or active state; cleared once none is to take */
+				 * enabled, priority or active state; cleared once none is to take */
+	bool priority_check;	/* only the execution priority may have changed (MSR, CPS): the
+				 * pending exception of the last check is compared with it */
+	sint32 pending_group;	/* the group priority of the enabled pending exception of the highest
+				 * priority at the last check; ARM_M_NO_PENDING: none */
 	/* exceptions */
 	uint8 active[ARM_M_EXC_NUM];
 	uint8 pending[ARM_M_EXC_NUM];

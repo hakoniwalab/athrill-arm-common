@@ -716,7 +716,8 @@ static void test_pending_summary(void)
 	msr.SYSm = 16U;
 	msr.Rn.regData = 0U;
 	(void)arm_pseudo_msr(&core, &msr, &out);
-	CHECK(m->pending_check && ArmMPendingToTakeFast(m) == 16U, "MSR PRIMASK: taken");
+	CHECK(m->priority_check && ArmMPendingToTakeFast(m) == 16U, "MSR PRIMASK: taken");
+	CHECK(m->pending_check, "taken: the pending check stays until the entry");
 	/* the end of a handler that masked it by priority */
 	m->active[16] = 1U;
 	m->priority[16] = 0x80U;
@@ -725,6 +726,24 @@ static void test_pending_summary(void)
 	ArmMDeActivate(m, 16U);
 	m->ipsr = 0U;
 	CHECK(m->pending_check && ArmMPendingToTakeFast(m) == 16U, "after DeActivate: taken");
+	/* MSR with nothing pending: no scan, nothing taken */
+	m->pending[16] = 0U;
+	m->pending_check = TRUE;
+	CHECK(ArmMPendingToTakeFast(m) == 0U && m->pending_group == ARM_M_NO_PENDING, "none pending: recorded");
+	msr.SYSm = 17U;	/* BASEPRI */
+	msr.Rn.regData = 0x40U;
+	(void)arm_pseudo_msr(&core, &msr, &out);
+	CHECK(m->priority_check && !m->pending_check, "MSR: priority check only");
+	CHECK(ArmMPendingToTakeFast(m) == 0U && !m->priority_check, "MSR, none pending: none");
+	/* pending of priority 0x80 under BASEPRI 0x40: masked; BASEPRI 0 again: taken */
+	ArmMSetPending(m, 16U);
+	CHECK(ArmMPendingToTakeFast(m) == 0U && m->pending_group == 0x80, "masked by BASEPRI: recorded");
+	msr.Rn.regData = 0x20U;
+	(void)arm_pseudo_msr(&core, &msr, &out);
+	CHECK(ArmMPendingToTakeFast(m) == 0U, "BASEPRI raised: still masked");
+	msr.Rn.regData = 0U;
+	(void)arm_pseudo_msr(&core, &msr, &out);
+	CHECK(ArmMPendingToTakeFast(m) == 16U, "BASEPRI 0: taken");
 }
 
 int main(void)
