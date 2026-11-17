@@ -34,9 +34,11 @@
 #define ARM_M_CONTROL_SPSEL	(1U << 1)
 #define ARM_M_CONTROL_FPCA	(1U << 2)
 
-/* UFSR (CFSR<31:16>) */
+/* BFSR (CFSR<15:8>), in the combined CFSR bit positions */
 #define ARM_M_BFSR_PRECISERR	(1U << 9)
 #define ARM_M_BFSR_BFARVALID	(1U << 15)
+
+/* UFSR (CFSR<31:16>), before shifting into the combined CFSR */
 #define ARM_M_UFSR_UNDEFINSTR	(1U << 0)
 #define ARM_M_UFSR_INVSTATE	(1U << 1)
 #define ARM_M_UFSR_INVPC	(1U << 2)
