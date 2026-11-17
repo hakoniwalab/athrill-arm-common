@@ -504,6 +504,24 @@ static void test_scs(void)
 	ArmMScsWrite(&core, m, &st, &cfg, 0xD2CU, 4U, ARM_M_HFSR_FORCED);
 	CHECK(m->cfsr == 1U && m->hfsr == 0U && scs_read(&core, &st, &cfg, 0xD28U, 4U) == 1U && scs_read(&core, &st, &cfg, 0xD2CU, 4U) == 0U,
 	      "CFSR (UFSR halfword), HFSR");
+	/* BFAR: word/byte access, address retention after BFARVALID W1C, reset */
+	m->bfar = 0xDEADBEEFU;
+	m->cfsr = ARM_M_BFSR_PRECISERR | ARM_M_BFSR_BFARVALID;
+	CHECK(scs_read(&core, &st, &cfg, 0xD38U, 4U) == 0xDEADBEEFU,
+	      "BFAR word read");
+	ArmMScsWrite(&core, m, &st, &cfg, 0xD39U, 1U, 0x12U);
+	CHECK(scs_read(&core, &st, &cfg, 0xD38U, 4U) == 0xDEAD12EFU,
+	      "BFAR byte write");
+	ArmMScsWrite(&core, m, &st, &cfg, 0xD28U, 4U, ARM_M_BFSR_BFARVALID);
+	CHECK(m->cfsr == ARM_M_BFSR_PRECISERR && m->bfar == 0xDEAD12EFU,
+	      "BFARVALID W1C must not modify BFAR");
+	m->cfsr = 0U;
+	{
+		ArmMStateType reset_state = *m;
+		ArmMReset(&reset_state, m->num_irq, m->priority_bits, m->have_fp);
+		CHECK(reset_state.bfar == 0U && (reset_state.cfsr & ARM_M_BFSR_BFARVALID) == 0U,
+		      "BFAR cleared on reset");
+	}
 	/* CPACR, FPCCR, FPCAR, FPDSCR */
 	ArmMScsWrite(&core, m, &st, &cfg, 0xD88U, 4U, 0xFFFFFFFFU);
 	ArmMScsWrite(&core, m, &st, &cfg, 0xF34U, 4U, 0U);
