@@ -61,6 +61,7 @@ static inline void ArmMReset(ArmMStateType *m, uint32 num_irq, uint32 priority_b
 	m->scr = 0U;
 	m->cfsr = 0U;
 	m->hfsr = 0U;
+	m->bfar = 0U;
 	m->cpacr = 0U;
 	m->fpccr = have_fp ? (ARM_M_FPCCR_ASPEN | ARM_M_FPCCR_LSPEN) : 0U;
 	m->fpcar = 0U;
