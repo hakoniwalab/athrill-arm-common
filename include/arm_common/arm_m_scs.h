@@ -224,6 +224,8 @@ static inline uint32 ArmMScsReadWord(const ArmMStateType *m, const ArmMSysTickTy
 		return m->cfsr;
 	case 0xD2CU:
 		return m->hfsr;
+	case 0xD38U:	/* BFAR: precise BusFault data address */
+		return m->bfar;
 	case 0xD88U:
 		return m->cpacr;
 	case 0xF34U:
@@ -360,6 +362,9 @@ static inline void ArmMScsWriteWord(TargetCoreType *core, ArmMStateType *m, ArmM
 		break;
 	case 0xD2CU:
 		m->hfsr &= ~value;
+		break;
+	case 0xD38U:	/* BFAR is writable; BFARVALID is controlled via CFSR */
+		m->bfar = (m->bfar & ~mask) | value;
 		break;
 	case 0xD88U:	/* CPACR: CP10, CP11 */
 		m->cpacr = ((m->cpacr & ~mask) | value) & 0x00F00000U;
